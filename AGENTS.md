@@ -279,7 +279,7 @@ after 1; step 8 any time after 1.
    modifies the haiku; ask Likert again.
 7. **End screen** — show `session_id` (UUID) for return to the originating tool; mark
    session `:completed`.
-8. **Export** — read action loading `session` + `runs`, serialized to JSON.
+8. ~~**Export** — read action loading `session` + `runs`, serialized to JSON.~~ ✅ **Done**
 
 ## Open questions (to clarify before implementation)
 

@@ -28,6 +28,22 @@ defmodule OwnershipAshChat.Study.Session do
       # On resume, leave the existing record untouched and return it as-is.
       upsert_fields []
     end
+
+    # Export reads (step 8): JSON is only an on-demand artifact, generated from
+    # these read actions which load the runs relationship. Serialization lives in
+    # `OwnershipAshChat.Study.Export`.
+    read :export do
+      get? true
+      prepare build(load: [:runs])
+    end
+
+    read :export_all do
+      argument :status, Types.SessionStatus, allow_nil?: true
+
+      prepare build(load: [:runs])
+
+      filter expr(is_nil(^arg(:status)) or status == ^arg(:status))
+    end
   end
 
   attributes do
