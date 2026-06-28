@@ -4,8 +4,9 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   single run, without token entry (#2) or run randomization (#3).
 
   Mounted at `/dev/study/run/:run_id` behind the `:dev_routes` compile flag. Not the
-  participant entry point — it just drives `set_topic` / `add_user_passage` /
-  `set_final_haiku` so the flow can be walked end to end.
+  participant entry point — it just drives `set_topic` / `add_user_passage` so the flow
+  can be walked end to end. The run auto-completes after three lines and assembles its
+  own `final_haiku`; there is no manual final-haiku entry.
   """
   use OwnershipAshChatWeb, :live_view
 
@@ -28,31 +29,20 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
     {:noreply, assign_run(socket, run)}
   end
 
-  def handle_event("set_final_haiku", %{"final_haiku" => haiku}, socket) do
-    run = Study.set_final_haiku!(socket.assigns.run, %{final_haiku: haiku})
-    {:noreply, assign_run(socket, run)}
-  end
-
   defp assign_run(socket, run) do
     socket
     |> assign(:run, run)
-    |> assign(:rounds_done?, rounds_done?(run))
+    |> assign(:lines_done?, lines_done?(run))
     |> assign(:can_add_passage?, can_add_passage?(run))
   end
 
-  # `:with_ai` runs stop at the round limit; `:without_ai` runs (plain solo writing)
-  # accept passages until the participant submits the final haiku.
-  defp can_add_passage?(%{ai_mode: :with_ai} = run), do: not rounds_done?(run)
-  defp can_add_passage?(run), do: is_nil(run.completed_at)
+  # A run holds exactly `PingPong.lines()` lines (3) regardless of `ai_mode`; once it
+  # is full it auto-completes, so no further passages are accepted.
+  defp can_add_passage?(run), do: is_nil(run.completed_at) and not lines_done?(run)
 
-  defp rounds_done?(%{ai_mode: :with_ai} = run),
-    do: user_count(run.transcript) >= PingPong.rounds()
+  defp lines_done?(run), do: line_count(run.transcript) >= PingPong.lines()
 
-  defp rounds_done?(_run), do: true
-
-  defp user_count(transcript) do
-    Enum.count(transcript || [], fn p -> passage_role(p) == "user" end)
-  end
+  defp line_count(transcript), do: length(transcript || [])
 
   defp passage_role(%{"role" => role}), do: role
   defp passage_role(%{role: role}), do: to_string(role)
@@ -120,23 +110,20 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
             <.input type="textarea" name="text" value="" label="Deine Passage" />
             <.button>Senden</.button>
           </.form>
-          <p :if={@run.ai_mode == :with_ai and @rounds_done?} class="text-sm text-base-content/60">
-            Ping-Pong abgeschlossen ({PingPong.rounds()} Runden).
+          <p :if={@lines_done?} class="text-sm text-base-content/60">
+            Schreibphase abgeschlossen ({PingPong.lines()} Zeilen).
           </p>
         </section>
 
         <section class="rounded-xl border border-base-300 p-4 space-y-3">
           <h2 class="font-medium">Finales Haiku</h2>
-          <pre :if={@run.final_haiku} class="whitespace-pre-wrap text-base-content/80">{@run.final_haiku}</pre>
-          <.form for={%{}} id="final-haiku-form" phx-submit="set_final_haiku" class="space-y-2">
-            <.input
-              type="textarea"
-              name="final_haiku"
-              value={@run.final_haiku || ""}
-              label="Haiku eintragen"
-            />
-            <.button>Abschließen</.button>
-          </.form>
+          <p :if={is_nil(@run.final_haiku)} class="text-sm text-base-content/50">
+            Wird nach der dritten Zeile automatisch zusammengesetzt.
+          </p>
+          <pre
+            :if={@run.final_haiku}
+            class="whitespace-pre-wrap text-base-content/80"
+          >{@run.final_haiku}</pre>
           <p :if={@run.completed_at} class="text-sm text-success">
             Run abgeschlossen um {@run.completed_at}.
           </p>

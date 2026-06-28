@@ -35,3 +35,7 @@ ownership_ash_chat-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# direnv local secrets (keep .envrc and .envrc.private.example tracked).
+.envrc.private
+/.direnv/
+

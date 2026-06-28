@@ -7,9 +7,9 @@ end to end in the browser.
 
 ## Setup
 
-* `mix setup` — install deps, create + migrate the database
-* `mix phx.server` (or `iex -S mix phx.server`) — start the server
-* Visit [`localhost:4000`](http://localhost:4000)
+- `mix setup` — install deps, create + migrate the database
+- `mix phx.server` (or `iex -S mix phx.server`) — start the server
+- Visit [`localhost:4000`](http://localhost:4000)
 
 For the production stack, see the [Phoenix deployment guides](https://phoenix.hexdocs.pm/deployment.html).
 
@@ -17,8 +17,8 @@ For the production stack, see the [Phoenix deployment guides](https://phoenix.he
 
 The chatbot is config-driven (`OwnershipAshChat.LLM`):
 
-* **prod** — Anthropic / Claude (`ANTHROPIC_API_KEY` required)
-* **dev/test** — a local OpenAI-compatible endpoint, by default
+- **prod** — Anthropic / Claude (`ANTHROPIC_API_KEY` required)
+- **dev/test** — a local OpenAI-compatible endpoint, by default
   [LM Studio](https://lmstudio.ai/) on `http://localhost:1234/v1`
 
 `:with_ai` (ping-pong) runs call the model, so they need a backend running.
@@ -47,27 +47,28 @@ iex -S mix
 
 ```elixir
 s = OwnershipAshChat.Study.create_session!(%{
-  case_id: "local-1",
+  case_id: "local-6",
   topic_source_order: [:free, :assigned]
 })
 
 # without_ai — no LLM needed:
+#r = OwnershipAshChat.Study.create_run!(%{
+#  run_index: 1,
+#  topic_source: :free,
+#  ai_mode: :without_ai,
+#  session_id: s.id
+#})
+
+# with_ai — ping-pong, needs an LLM backend (e.g. LM Studio on localhost:1234):
 r = OwnershipAshChat.Study.create_run!(%{
   run_index: 1,
   topic_source: :free,
-  ai_mode: :without_ai,
+  ai_mode: :with_ai,
   session_id: s.id
 })
 
-# with_ai — ping-pong, needs an LLM backend (e.g. LM Studio on localhost:1234):
-# r = OwnershipAshChat.Study.create_run!(%{
-#   run_index: 1,
-#   topic_source: :free,
-#   ai_mode: :with_ai,
-#   session_id: s.id
-# })
-
 r.id
+"http://localhost:4000/dev/study/run/#{r.id}"
 ```
 
 **3. Open the run in the browser** — use the `r.id` printed above:
@@ -81,6 +82,6 @@ There you can set the topic (for `:free`), add passages (ping-pong with the AI f
 
 ## Learn more
 
-* Study concept & data model: `AGENTS.md`
-* Phoenix: https://www.phoenixframework.org/ · https://phoenix.hexdocs.pm
-* Ash: https://ash-hq.org · https://hexdocs.pm/ash
+- Study concept & data model: `AGENTS.md`
+- Phoenix: https://www.phoenixframework.org/ · https://phoenix.hexdocs.pm
+- Ash: https://ash-hq.org · https://hexdocs.pm/ash

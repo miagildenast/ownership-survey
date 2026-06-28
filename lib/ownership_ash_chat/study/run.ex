@@ -34,12 +34,6 @@ defmodule OwnershipAshChat.Study.Run do
       change OwnershipAshChat.Study.Run.Changes.AddPassage
     end
 
-    # Capture the finished haiku and mark the run complete.
-    update :set_final_haiku do
-      accept [:final_haiku]
-      change set_attribute(:completed_at, &DateTime.utc_now/0)
-    end
-
     create :create do
       accept [
         :run_index,

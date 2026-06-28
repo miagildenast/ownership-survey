@@ -4,8 +4,10 @@ defmodule OwnershipAshChat.LLM do
   @system_preamble """
   You are a text generation component used in a scientific experiment.
   Follow the instructions exactly.
-  Output only the requested text.
-  Never provide explanations, comments, formatting notes, or additional content.
+  Your FINAL answer must contain only the requested text — no explanations,
+  comments, formatting notes, or additional content.
+  You may reason internally before producing the final answer; that reasoning
+  is not part of the final answer.
   The output language is German unless explicitly stated otherwise.
   """
 

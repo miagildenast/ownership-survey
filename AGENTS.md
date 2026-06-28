@@ -239,8 +239,41 @@ after 1; step 8 any time after 1.
    `StartController` (`/start` → session cookie → `/study/started` landing), tests.
 3. **Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
    per block; create the 4 `kind: :writing` runs with their `run_index`.
-4. **Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
-   existing chat/`Respond`; capture `topic`, `transcript`, `final_haiku` per run.
+4. ~~**Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
+   existing chat/`Respond`; capture `topic`, `transcript`, `final_haiku` per run.~~ ✅
+   **Done** — `Study.{set_run_topic,add_user_passage}` actions persist `topic` /
+   `transcript` (embedded `%{"role","text"}` passages); `final_haiku` is auto-assembled
+   on completion (see 4b). `Study.PingPong` generates the AI passage via central `LLM` +
+   `ReqLLM` (injectable responder for tests); dev harness `StudyWritingLive`
+   (`/dev/study/run/:run_id`) walks it end to end. Follow-ups 4a/4b done below.
+
+   4a. ~~**Line-specific ping-pong prompt**~~ ✅ **Done** — `PingPong.second_line_prompt/1`
+   builds the literal prompt below (system = global preamble, user = the prompt) and
+   `generate_passage/2` strips stray quotes/whitespace. Topic intentionally NOT injected
+   (literal spec); TODO in the module notes injecting it for `:assigned` runs. The AI
+   passage is a concrete haiku line under hard constraints (exactly one line, 7 syllables,
+   German, no quotes/explanations/surrounding text) — the **second line**, given the
+   human's first line:
+
+       Generate the second line of a German haiku.
+       First line:
+       „[LINE1]“
+       Constraints:
+       „Output exactly one line.“
+       „The line must contain 7 syllables.“
+       „Output language: German.“
+       „Do not add quotation marks.“
+       „Do not add explanations.“
+       „Do not add any text before or after the line.“
+       Return only the second line.
+
+   4b. ~~**Auto-end after 3 lines**~~ ✅ **Done** — runs hold exactly `PingPong.lines()`
+   (3, config `:ping_pong_lines`) lines: `:with_ai` = `[human, LLM, human]` (AI takes only
+   line 2), `:without_ai` = three human lines. `Run.Changes.AddPassage` generates the AI
+   line only after the first human passage and, on reaching the limit, auto-completes the
+   run — assembling `final_haiku` from the transcript (joined by `\n`, **never** entered by
+   the user) and stamping `completed_at`. Replaced the old `ping_pong_rounds` user-count
+   rule; the standalone `set_final_haiku` action was removed.
 5. **Likert** — questionnaire at each run's end → store `likert` (items positively coded).
 6. **Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
    modifies the haiku; ask Likert again.

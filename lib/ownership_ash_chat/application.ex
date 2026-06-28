@@ -4,6 +4,7 @@ defmodule OwnershipAshChat.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
@@ -28,8 +29,47 @@ defmodule OwnershipAshChat.Application do
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: OwnershipAshChat.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+
+    # --- DEV: seed a writing run on boot & print its link (delete this block) ---
+    if Application.get_env(:ownership_ash_chat, OwnershipAshChatWeb.Endpoint)[:code_reloader] do
+      Task.start(&seed_dev_run/0)
+    end
+
+    # --- end DEV seed ---
+
+    result
   end
+
+  # --- DEV: boot-time writing-run seeder (delete with the block above) ---
+  defp seed_dev_run do
+    session =
+      OwnershipAshChat.Study.create_session!(%{
+        case_id: "boot-#{System.unique_integer([:positive])}",
+        topic_source_order: [:free, :assigned]
+      })
+
+    run =
+      OwnershipAshChat.Study.create_run!(%{
+        run_index: 1,
+        topic_source: :free,
+        ai_mode: :with_ai,
+        session_id: session.id
+      })
+
+    port = OwnershipAshChatWeb.Endpoint.config(:http)[:port] || 4000
+
+    Logger.info("""
+
+    ┌─ DEV writing run ready ─────────────────────────────
+    │ http://localhost:#{port}/dev/study/run/#{run.id}
+    └─────────────────────────────────────────────────────
+    """)
+  rescue
+    e -> Logger.warning("dev seed failed: #{Exception.message(e)}")
+  end
+
+  # --- end DEV seeder ---
 
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.

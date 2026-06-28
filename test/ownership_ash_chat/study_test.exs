@@ -140,33 +140,54 @@ defmodule OwnershipAshChat.StudyTest do
       assert ai_text == OwnershipAshChat.Study.PingPongStub.text()
     end
 
-    test "with_ai stops generating AI replies past the round limit" do
-      rounds = OwnershipAshChat.Study.PingPong.rounds()
+    test "with_ai run is three lines [human, AI, human], then auto-completes" do
+      ai = OwnershipAshChat.Study.PingPongStub.text()
+
+      run = generate(run(ai_mode: :with_ai))
+
+      # Line 1 (human) triggers the AI's line 2; run not yet complete.
+      run = Study.add_user_passage!(run, "Stille am Teich")
+      assert [%{"role" => "user"}, %{"role" => "ai"}] = run.transcript
+      assert is_nil(run.completed_at)
+
+      # Line 3 (human) completes the run — no further AI turn.
+      run = Study.add_user_passage!(run, "Frosch springt hinein")
+
+      assert [
+               %{"role" => "user", "text" => "Stille am Teich"},
+               %{"role" => "ai", "text" => ^ai},
+               %{"role" => "user", "text" => "Frosch springt hinein"}
+             ] = run.transcript
+
+      assert run.final_haiku == "Stille am Teich\n#{ai}\nFrosch springt hinein"
+      refute is_nil(run.completed_at)
+    end
+
+    test "without_ai run is three human lines, then auto-completes" do
+      run = generate(run(ai_mode: :without_ai))
 
       run =
-        Enum.reduce(1..(rounds + 1), generate(run(ai_mode: :with_ai)), fn i, run ->
-          Study.add_user_passage!(run, "Zeile #{i}")
+        Enum.reduce(["alter Teich", "Frosch springt hinein", "Wasserklang"], run, fn line, run ->
+          Study.add_user_passage!(run, line)
         end)
 
-      user_count = Enum.count(run.transcript, &(&1["role"] == "user"))
-      ai_count = Enum.count(run.transcript, &(&1["role"] == "ai"))
-
-      assert user_count == rounds + 1
-      assert ai_count == rounds
+      assert Enum.map(run.transcript, & &1["role"]) == ["user", "user", "user"]
+      assert run.final_haiku == "alter Teich\nFrosch springt hinein\nWasserklang"
+      refute is_nil(run.completed_at)
     end
-  end
 
-  describe "set_final_haiku/2" do
-    test "sets the final haiku and stamps completed_at" do
-      run = generate(run())
+    test "ignores passages once the run is complete" do
+      run = generate(run(ai_mode: :without_ai))
 
-      updated =
-        Study.set_final_haiku!(run, %{
-          final_haiku: "alter Teich\nFrosch springt hinein\nWasserklang"
-        })
+      run =
+        Enum.reduce(["eins", "zwei", "drei"], run, fn line, run ->
+          Study.add_user_passage!(run, line)
+        end)
 
-      assert updated.final_haiku =~ "Wasserklang"
-      refute is_nil(updated.completed_at)
+      after_extra = Study.add_user_passage!(run, "vier")
+
+      assert length(after_extra.transcript) == 3
+      assert after_extra.final_haiku == run.final_haiku
     end
   end
 

@@ -24,17 +24,22 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     assert [%{"role" => "user", "text" => "Stille am Teich"}] = reloaded.transcript
   end
 
-  test "submitting the final haiku completes the run", %{conn: conn} do
+  test "the run auto-completes and assembles its haiku after three lines", %{conn: conn} do
     run = generate(run(ai_mode: :without_ai))
 
     {:ok, view, _html} = live(conn, ~p"/dev/study/run/#{run.id}")
 
-    view
-    |> form("form[phx-submit=set_final_haiku]", %{"final_haiku" => "alter Teich"})
-    |> render_submit()
+    for line <- ["alter Teich", "Frosch springt hinein", "Wasserklang"] do
+      view
+      |> form("form[phx-submit=add_passage]", %{"text" => line})
+      |> render_submit()
+    end
 
     reloaded = Study.get_run!(run.id)
-    assert reloaded.final_haiku == "alter Teich"
+    assert reloaded.final_haiku == "alter Teich\nFrosch springt hinein\nWasserklang"
     refute is_nil(reloaded.completed_at)
+
+    # Writing phase is closed — no more passage form.
+    refute render(view) =~ "phx-submit=\"add_passage\""
   end
 end

@@ -19,15 +19,13 @@ defmodule OwnershipAshChat.Study.PingPong do
   alias OwnershipAshChat.LLM
   alias ReqLLM.Context
 
-  @task """
-  Du schreibst gemeinsam mit einer Person ein Haiku – abwechselnd, Zeile für Zeile (Ping-Pong).
-  Lies den bisherigen Verlauf und knüpfe inhaltlich an die LETZTE Passage deines Partners an,
-  führe sie weiter (kein neuer, unabhängiger Anfang). Antworte mit genau einer kurzen Passage
-  (in der Regel eine Haiku-Zeile). Gib nur die Passage zurück, ohne Erklärungen oder Anführungszeichen.
-  """
+  @doc """
+  Total number of lines (passages) a writing run holds before it auto-completes.
 
-  @doc "Number of ping-pong rounds (one user + one AI passage each) per run."
-  def rounds, do: Application.get_env(:ownership_ash_chat, :ping_pong_rounds, 3)
+  A `:with_ai` run is `[human, AI, human]`, a `:without_ai` run is three human
+  lines. The AI therefore takes exactly one turn — generating line 2.
+  """
+  def lines, do: Application.get_env(:ownership_ash_chat, :ping_pong_lines, 3)
 
   @doc """
   Resolve and invoke the configured responder. Defaults to `generate_passage/2`.
@@ -43,35 +41,77 @@ defmodule OwnershipAshChat.Study.PingPong do
     apply(mod, fun, [run, opts])
   end
 
-  @doc "Generate the AI's next passage from the run's transcript via the LLM."
-  def generate_passage(run, _opts) do
-    context =
-      Context.new([Context.system(system(run)) | turns(run.transcript || [])])
+  @doc """
+  Generate the AI's haiku line (line 2) from the run's transcript via the LLM.
 
-    case ReqLLM.generate_text(ReqLLM.model!(LLM.model()), context, LLM.req_llm_opts()) do
-      {:ok, response} -> response |> ReqLLM.Response.text() |> to_string() |> String.trim()
+  The AI only ever takes the second turn, so the human's first line is the most
+  recent passage in the transcript when this runs.
+  """
+  def generate_passage(run, _opts) do
+    line1 = last_user_text(run.transcript || [])
+
+    messages =
+      [system_message(), Context.user(second_line_prompt(line1))]
+      |> Enum.reject(&is_nil/1)
+
+    case ReqLLM.generate_text(
+           ReqLLM.model!(LLM.model()),
+           Context.new(messages),
+           LLM.req_llm_opts()
+         ) do
+      {:ok, response} -> response |> ReqLLM.Response.text() |> to_string() |> strip_line()
       {:error, _reason} -> "…"
     end
   end
 
-  # Global experiment preamble + ping-pong task + (optional) the run's topic.
-  defp system(run) do
-    [LLM.system_preamble(), @task, topic_line(run)]
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.join("\n")
+  @doc """
+  The literal prompt asking the model for the second haiku line, given line 1.
+
+  TODO: this deliberately follows the study's literal prompt and does NOT pass the
+  run's `topic` to the model — line 1 (written by the human to the topic) is the
+  only topic signal. For `:assigned` runs the AI line could drift; injecting
+  `"Thema: \#{run.topic}"` here would tie it back to the assigned topic.
+  """
+  def second_line_prompt(line1) do
+    """
+    Generate the second line of a German haiku.
+
+    First line:
+    „#{line1}“
+
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 7 syllables.
+    - NEVER return a line with more or fewer than 7 syllables.
+    - Return only the second line.
+    """
   end
 
-  defp topic_line(%{topic: topic}) when is_binary(topic) and topic != "",
-    do: "Thema des Haikus: #{topic}"
+  defp system_message do
+    case LLM.system_preamble() do
+      preamble when is_binary(preamble) and preamble != "" -> Context.system(preamble)
+      _ -> nil
+    end
+  end
 
-  defp topic_line(_), do: nil
+  # Defensive: the prompt forbids quotes/extra text, but strip wrapping whitespace
+  # and quote characters in case the model disobeys.
+  defp strip_line(text) do
+    text
+    |> String.trim()
+    |> String.replace(~r/^["„“”']+|["„“”']+$/u, "")
+    |> String.trim()
+  end
 
-  defp turns(transcript) do
-    Enum.map(transcript, fn passage ->
-      case role(passage) do
-        "ai" -> Context.assistant(text(passage))
-        _ -> Context.user(text(passage))
-      end
+  defp last_user_text(transcript) do
+    transcript
+    |> Enum.reverse()
+    |> Enum.find_value("", fn passage ->
+      if role(passage) == "user", do: text(passage)
     end)
   end
 

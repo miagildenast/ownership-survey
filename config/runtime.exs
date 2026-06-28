@@ -11,15 +11,34 @@ llm_config =
       ]
     ]
   else
-    # dev/test: lokal gehostet via LM Studio (OpenAI-kompatibel)
+    # test bypasst den LLM via Stub-Responder (config/test.exs) — daher dort keine
+    # echten Secrets nötig; nur :dev erzwingt die Env-Variablen.
+    api_key = System.get_env("ANTHROPIC_AUTH_TOKEN") || System.get_env("ANTHROPIC_API_KEY")
+    base_url = System.get_env("ANTHROPIC_BASE_URL")
+
+    if config_env() == :dev and (is_nil(api_key) or is_nil(base_url)) do
+      raise "Missing ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL (see .envrc.private.example)"
+    end
+
     [
-      model: %{
-        provider: :openai,
-        id: System.get_env("LLM_MODEL", "google/gemma-3n-e4b"),
-        base_url: System.get_env("LLM_BASE_URL", "http://localhost:1234/v1")
-      },
-      req_llm_opts: [api_key: System.get_env("LLM_API_KEY", "lm-studio")]
+      model: System.get_env("LLM_MODEL", "anthropic:claude-sonnet-4-6"),
+      req_llm_opts: [
+        api_key: api_key || "stub-not-used-in-test",
+        base_url: base_url || "http://localhost",
+        max_tokens: 2048,
+        provider_options: [thinking: %{type: "adaptive"}]
+      ]
     ]
+
+    # dev/test: lokal gehostet via LM Studio (OpenAI-kompatibel) — vorerst deaktiviert
+    # [
+    #   model: %{
+    #     provider: :openai,
+    #     id: System.get_env("LLM_MODEL", "google/gemma-4-e4b"),
+    #     base_url: System.get_env("LLM_BASE_URL", "http://localhost:1234/v1")
+    #   },
+    #   req_llm_opts: [api_key: System.get_env("LLM_API_KEY", "lm-studio")]
+    # ]
   end
 
 config :ownership_ash_chat, :llm, llm_config
