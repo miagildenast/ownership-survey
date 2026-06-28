@@ -23,7 +23,7 @@ defmodule OwnershipAshChat.MixProject do
       # AGENTS.md is the single source of truth; CLAUDE.md is a symlink to it.
       file: "AGENTS.md",
       # rules to include directly in AGENTS.md
-      usage_rules: ["usage_rules:all", :req_llm],
+      usage_rules: ["usage_rules:all", :req_llm, :ex_check_ng],
       skills: [
         location: ".claude/skills",
         # build skills that combine multiple usage rules
@@ -112,7 +112,8 @@ defmodule OwnershipAshChat.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:ex_check_ng, "1.0.0-rc.0", only: [:dev], runtime: false}
     ]
   end
 

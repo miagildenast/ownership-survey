@@ -246,329 +246,433 @@ after 1; step 8 any time after 1.
 
 
 <!-- usage-rules-start -->
+<!-- usage_rules-start -->
+## usage_rules usage
+_A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
 
-<!-- phoenix:elixir-start -->
-## Elixir guidelines
+## Using Usage Rules
 
-- Elixir lists **do not support index based access via the access syntax**
+Many packages have usage rules, which you should *thoroughly* consult before taking any
+action. These usage rules contain guidelines and rules *directly from the package authors*.
+They are your best source of knowledge for making decisions.
 
-  **Never do this (invalid)**:
+## Modules & functions in the current app and dependencies
 
-      i = 0
-      mylist = ["blue", "green"]
-      mylist[i]
+When looking for docs for modules & functions that are dependencies of the current project,
+or for Elixir itself, use `mix usage_rules.docs`
 
-  Instead, **always** use `Enum.at`, pattern matching, or `List` for index based list access, ie:
+```
+# Search a whole module
+mix usage_rules.docs Enum
 
-      i = 0
-      mylist = ["blue", "green"]
-      Enum.at(mylist, i)
+# Search a specific function
+mix usage_rules.docs Enum.zip
 
-- Elixir variables are immutable, but can be rebound, so for block expressions like `if`, `case`, `cond`, etc
-  you *must* bind the result of the expression to a variable if you want to use it and you CANNOT rebind the result inside the expression, ie:
+# Search a specific function & arity
+mix usage_rules.docs Enum.zip/1
+```
 
-      # INVALID: we are rebinding inside the `if` and the result never gets assigned
-      if connected?(socket) do
-        socket = assign(socket, :val, val)
-      end
 
-      # VALID: we rebind the result of the `if` to a new variable
-      socket =
-        if connected?(socket) do
-          assign(socket, :val, val)
-        end
+## Searching Documentation
 
-- **Never** nest multiple modules in the same file as it can cause cyclic dependencies and compilation errors
-- **Never** use map access syntax (`changeset[:field]`) on structs as they do not implement the Access behaviour by default. For regular structs, you **must** access the fields directly, such as `my_struct.field` or use higher level APIs that are available on the struct if they exist, `Ecto.Changeset.get_field/2` for changesets
-- Elixir's standard library has everything necessary for date and time manipulation. Familiarize yourself with the common `Time`, `Date`, `DateTime`, and `Calendar` interfaces by accessing their documentation as necessary. **Never** install additional dependencies unless asked or for date/time parsing (which you can use the `date_time_parser` package)
+You should also consult the documentation of any tools you are using, early and often. The best 
+way to accomplish this is to use the `usage_rules.search_docs` mix task. Once you have
+found what you are looking for, use the links in the search results to get more detail. For example:
+
+```
+# Search docs for all packages in the current application, including Elixir
+mix usage_rules.search_docs Enum.zip
+
+# Search docs for specific packages
+mix usage_rules.search_docs Req.get -p req
+
+# Search docs for multi-word queries
+mix usage_rules.search_docs "making requests" -p req
+
+# Search only in titles (useful for finding specific functions/modules)
+mix usage_rules.search_docs "Enum.zip" --query-by title
+```
+
+
+<!-- usage_rules-end -->
+<!-- usage_rules:elixir-start -->
+## usage_rules:elixir usage
+# Elixir Core Usage Rules
+
+## Pattern Matching
+- Use pattern matching over conditional logic when possible
+- Prefer to match on function heads instead of using `if`/`else` or `case` in function bodies
+- `%{}` matches ANY map, not just empty maps. Use `map_size(map) == 0` guard to check for truly empty maps
+
+## Error Handling
+- Use `{:ok, result}` and `{:error, reason}` tuples for operations that can fail
+- Avoid raising exceptions for control flow
+- Use `with` for chaining operations that return `{:ok, _}` or `{:error, _}`
+
+## Common Mistakes to Avoid
+- Elixir has no `return` statement, nor early returns. The last expression in a block is always returned.
+- Don't use `Enum` functions on large collections when `Stream` is more appropriate
+- Avoid nested `case` statements - refactor to a single `case`, `with` or separate functions
 - Don't use `String.to_atom/1` on user input (memory leak risk)
-- Predicate function names should not start with `is_` and should end in a question mark. Names like `is_thing` should be reserved for guards
-- Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: MyApp.MyDynamicSup}`, then you can use `DynamicSupervisor.start_child(MyApp.MyDynamicSup, child_spec)`
-- Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity` as option
+- Lists and enumerables cannot be indexed with brackets. Use pattern matching or `Enum` functions
+- Prefer `Enum` functions like `Enum.reduce` over recursion
+- When recursion is necessary, prefer to use pattern matching in function heads for base case detection
+- Using the process dictionary is typically a sign of unidiomatic code
+- Only use macros if explicitly requested
+- There are many useful standard library functions, prefer to use them where possible
+
+## Function Design
+- Use guard clauses: `when is_binary(name) and byte_size(name) > 0`
+- Prefer multiple function clauses over complex conditional logic
+- Name functions descriptively: `calculate_total_price/2` not `calc/2`
+- Predicate function names should not start with `is` and should end in a question mark.
+- Names like `is_thing` should be reserved for guards
+
+## Data Structures
+- Use structs over maps when the shape is known: `defstruct [:name, :age]`
+- Prefer keyword lists for options: `[timeout: 5000, retries: 3]`
+- Use maps for dynamic key-value data
+- Prefer to prepend to lists `[new | list]` not `list ++ [new]`
+
+## Mix Tasks
+
+- Use `mix help` to list available mix tasks
+- Use `mix help task_name` to get docs for an individual task
+- Read the docs and options fully before using tasks
+
+## Testing
+- Run tests in a specific file with `mix test test/my_test.exs` and a specific test with the line number `mix test path/to/test.exs:123`
+- Limit the number of failed tests with `mix test --max-failures n`
+- Use `@tag` to tag specific tests, and `mix test --only tag` to run only those tests
+- Use `assert_raise` for testing expected exceptions: `assert_raise ArgumentError, fn -> invalid_function() end`
+- Use `mix help test` to for full documentation on running tests
+
+## Debugging
+
+- Use `dbg/1` to print values while debugging. This will display the formatted value and other relevant information in the console.
+
+<!-- usage_rules:elixir-end -->
+<!-- usage_rules:otp-start -->
+## usage_rules:otp usage
+# OTP Usage Rules
+
+## GenServer Best Practices
+- Keep state simple and serializable
+- Handle all expected messages explicitly
+- Use `handle_continue/2` for post-init work
+- Implement proper cleanup in `terminate/2` when necessary
+
+## Process Communication
+- Use `GenServer.call/3` for synchronous requests expecting replies
+- Use `GenServer.cast/2` for fire-and-forget messages.
+- When in doubt, use `call` over `cast`, to ensure back-pressure
+- Set appropriate timeouts for `call/3` operations
+
+## Fault Tolerance
+- Set up processes such that they can handle crashing and being restarted by supervisors
+- Use `:max_restarts` and `:max_seconds` to prevent restart loops
+
+## Task and Async
+- Use `Task.Supervisor` for better fault tolerance
+- Handle task failures with `Task.yield/2` or `Task.shutdown/2`
+- Set appropriate task timeouts
+- Use `Task.async_stream/3` for concurrent enumeration with back-pressure
+
+<!-- usage_rules:otp-end -->
+<!-- req_llm-start -->
+## req_llm usage
+_req_llm_
+
+# ReqLLM Usage Rules
+
+ReqLLM provides two API layers for AI interactions: high-level convenience functions and low-level Req plugin access.
+
+## High-Level API
+
+### Text Generation
+
+```elixir
+# Simple text generation
+ReqLLM.generate_text!("anthropic:claude-haiku-4-5", "Hello world")
+#=> "Hello! How can I assist you today?"
+
+# With full response metadata
+{:ok, response} = ReqLLM.generate_text("openai:gpt-4", "Hello", temperature: 0.7)
+response.usage
+#=> %{
+#     input_tokens: 8,
+#     output_tokens: 12,
+#     total_tokens: 20,
+#     input_cost: 0.00024,
+#     output_cost: 0.00036,
+#     total_cost: 0.0006,
+#     cost: %{tokens: 0.0006, tools: 0.0, images: 0.0, total: 0.0006}
+#   }
+```
+
+### Streaming
+
+```elixir
+# New API returns StreamResponse struct
+{:ok, response} = ReqLLM.stream_text("anthropic:claude-haiku-4-5", "Write a story")
+response.stream
+|> Stream.each(&IO.write(&1.text))
+|> Stream.run()
 
-## Mix guidelines
+# Note: stream_text! is deprecated, use stream_text/3 instead
+```
 
-- Read the docs and options before using tasks (by using `mix help task_name`)
-- To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
-- `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
+### Structured Objects
 
-## Test guidelines
+```elixir
+schema = [name: [type: :string, required: true], age: [type: :pos_integer]]
+person = ReqLLM.generate_object!("openai:gpt-4", "Generate a person", schema)
+#=> %{name: "John Doe", age: 30}
+```
 
-- **Always use `start_supervised!/1`** to start processes in tests as it guarantees cleanup between tests
-- **Avoid** `Process.sleep/1` and `Process.alive?/1` in tests
-  - Instead of sleeping to wait for a process to finish, **always** use `Process.monitor/1` and assert on the DOWN message:
+### Tools
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+```elixir
+weather_tool = ReqLLM.tool(
+  name: "get_weather",
+  description: "Get current weather for a location",
+  parameter_schema: [location: [type: :string, required: true]],
+  callback: {WeatherAPI, :fetch_weather}
+)
 
-   - Instead of sleeping to synchronize before the next call, **always** use `_ = :sys.get_state/1` to ensure the process has handled prior messages
-<!-- phoenix:elixir-end -->
+ReqLLM.generate_text("openai:gpt-4", "What's the weather in Paris?", tools: [weather_tool])
+```
 
-<!-- phoenix:phoenix-start -->
-## Phoenix guidelines
+### Context & Messages
 
-- Remember Phoenix router `scope` blocks include an optional alias which is prefixed for all routes within the scope. **Always** be mindful of this when creating routes within a scope to avoid duplicate module prefixes.
+```elixir
+context = ReqLLM.Context.new([
+  ReqLLM.Context.system("You are a helpful coding assistant"),
+  ReqLLM.Context.user("Explain recursion in Elixir")
+])
 
-- You **never** need to create your own `alias` for route definitions! The `scope` provides the alias, ie:
+{:ok, response} = ReqLLM.generate_text("anthropic:claude-haiku-4-5", context)
+```
 
-      scope "/admin", AppWeb.Admin do
-        pipe_through :browser
+### Model Specifications
+
+```elixir
+# String format
+ReqLLM.generate_text("anthropic:claude-haiku-4-5", "Hello")
 
-        live "/users", UserLive, :index
-      end
+# Tuple format with options
+ReqLLM.generate_text({:anthropic, "claude-3-sonnet-20240229", temperature: 0.7}, "Hello")
 
-  the UserLive route would point to the `AppWeb.Admin.UserLive` module
+# Model struct
+model = %ReqLLM.Model{provider: :anthropic, model: "claude-3-sonnet-20240229", max_tokens: 100}
+ReqLLM.generate_text(model, "Hello")
+```
+
+### Key Management
+
+```elixir
+# Keys auto-loaded from .env files via dotenvy at startup
+# ANTHROPIC_API_KEY=sk-ant-...
+# OPENAI_API_KEY=sk-...
 
-- `Phoenix.View` no longer is needed or included with Phoenix, don't use it
-<!-- phoenix:phoenix-end -->
+# Optional: Store in application config
+ReqLLM.put_key(:anthropic_api_key, "sk-ant-...")
+ReqLLM.get_key(:openai_api_key)
 
+# Per-request override
+ReqLLM.generate_text("openai:gpt-4", "Hello", api_key: "sk-...")
+```
 
-<!-- phoenix:html-start -->
-## Phoenix HTML guidelines
+## Low-Level API
 
-- Phoenix templates **always** use `~H` or .html.heex files (known as HEEx), **never** use `~E`
-- **Always** use the imported `Phoenix.Component.form/1` and `Phoenix.Component.inputs_for/1` function to build forms. **Never** use `Phoenix.HTML.form_for` or `Phoenix.HTML.inputs_for` as they are outdated
-- When building forms **always** use the already imported `Phoenix.Component.to_form/2` (`assign(socket, form: to_form(...))` and `<.form for={@form} id="msg-form">`), then access those forms in the template via `@form[:field]`
-- **Always** add unique DOM IDs to key elements (like forms, buttons, etc) when writing templates, these IDs can later be used in tests (`<.form for={@form} id="product-form">`)
-- For "app wide" template imports, you can import/alias into the `my_app_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MyAppWeb, :html` (replace "my_app" by the actual app name)
+### Non-Streaming Requests
 
-- Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`**. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
+Direct Req plugin access for custom HTTP control:
 
-  **Never do this (invalid)**:
+```elixir
+# Canonical implementation from ReqLLM.Generation.generate_text/3
+with {:ok, model} <- ReqLLM.Model.from("anthropic:claude-haiku-4-5"),
+     {:ok, provider_module} <- ReqLLM.provider(model.provider),
+     {:ok, request} <- provider_module.prepare_request(:chat, model, "Hello!", temperature: 0.7),
+     {:ok, %Req.Response{body: response}} <- Req.request(request) do
+  {:ok, response}
+end
 
-      <%= if condition do %>
-        ...
-      <% else if other_condition %>
-        ...
-      <% end %>
+# Custom headers and middleware
+{:ok, model} = ReqLLM.Model.from("anthropic:claude-haiku-4-5")
+{:ok, provider_module} = ReqLLM.provider(model.provider)
+{:ok, request} = provider_module.prepare_request(:chat, model, "Hello!")
 
-  Instead **always** do this:
+custom_request = 
+  request
+  |> Req.Request.put_header("x-request-id", "my-id")
+  |> Req.Request.put_header("x-source", "my-app")
 
-      <%= cond do %>
-        <% condition -> %>
-          ...
-        <% condition2 -> %>
-          ...
-        <% true -> %>
-          ...
-      <% end %>
+{:ok, response} = Req.request(custom_request)
+```
 
-- HEEx require special tag annotation if you want to insert literal curly's like `{` or `}`. If you want to show a textual code snippet on the page in a `<pre>` or `<code>` block you *must* annotate the parent tag with `phx-no-curly-interpolation`:
+Native ReqLLM telemetry still applies to this low-level Req path, so `provider_module.prepare_request/4` plus `Req.request/1` participates in `[:req_llm, :request, ...]`, `[:req_llm, :reasoning, ...]`, and `[:req_llm, :token_usage]`.
 
-      <code phx-no-curly-interpolation>
-        let obj = {key: "val"}
-      </code>
+### Streaming Requests
 
-  Within `phx-no-curly-interpolation` annotated tags, you can use `{` and `}` without escaping them, and dynamic Elixir expressions can still be used with `<%= ... %>` syntax
+**IMPORTANT**: Streaming uses Finch, not Req. The `prepare_request/4` and `attach/3` callbacks do NOT work for streaming operations.
 
-- HEEx class attrs support lists, but you must **always** use list `[...]` syntax. You can use the class list syntax to conditionally add classes, **always do this for multiple class values**:
+If you need observability across both sync and streaming requests, attach to ReqLLM's native telemetry events instead of relying on Req middleware alone.
 
-      <a class={[
-        "px-2 text-white",
-        @some_flag && "py-5",
-        if(@other_condition, do: "border-red-500", else: "border-blue-100"),
-        ...
-      ]}>Text</a>
+For custom streaming, use the provider's `attach_stream/4` callback or use `ReqLLM.Streaming.start_stream/4`:
 
-  and **always** wrap `if`'s inside `{...}` expressions with parens, like done above (`if(@other_condition, do: "...", else: "...")`)
+```elixir
+# High-level streaming API (recommended)
+{:ok, response} = ReqLLM.stream_text("anthropic:claude-haiku-4-5", "Hello")
+response.stream |> Stream.each(&IO.write(&1.text)) |> Stream.run()
 
-  and **never** do this, since it's invalid (note the missing `[` and `]`):
+# Low-level streaming (for advanced use cases)
+{:ok, model} = ReqLLM.Model.from("anthropic:claude-haiku-4-5")
+{:ok, provider_module} = ReqLLM.provider(model.provider)
+context = ReqLLM.Context.new("Hello!")
 
-      <a class={
-        "px-2 text-white",
-        @some_flag && "py-5"
-      }> ...
-      => Raises compile syntax error on invalid HEEx attr syntax
+{:ok, stream_response} = ReqLLM.Streaming.start_stream(
+  provider_module,
+  model,
+  context,
+  timeout: 60_000
+)
 
-- **Never** use `<% Enum.each %>` or non-for comprehensions for generating template content, instead **always** use `<%= for item <- @collection do %>`
-- HEEx HTML comments use `<%!-- comment --%>`. **Always** use the HEEx HTML comment syntax for template comments (`<%!-- comment --%>`)
-- HEEx allows interpolation via `{...}` and `<%= ... %>`, but the `<%= %>` **only** works within tag bodies. **Always** use the `{...}` syntax for interpolation within tag attributes, and for interpolation of values within tag bodies. **Always** interpolate block constructs (if, cond, case, for) within tag bodies using `<%= ... %>`.
-
-  **Always** do this:
-
-      <div id={@id}>
-        {@my_assign}
-        <%= if @some_block_condition do %>
-          {@another_assign}
-        <% end %>
-      </div>
-
-  and **Never** do this – the program will terminate with a syntax error:
+stream_response.stream
+|> Stream.each(&IO.write(&1.text))
+|> Stream.run()
+```
 
-      <%!-- THIS IS INVALID NEVER EVER DO THIS --%>
-      <div id="<%= @invalid_interpolation %>">
-        {if @invalid_block_construct do}
-        {end}
-      </div>
-<!-- phoenix:html-end -->
-
-<!-- phoenix:liveview-start -->
-## Phoenix LiveView guidelines
-
-- **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
-- **Avoid LiveComponent's** unless you have a strong, specific need for them
-- LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
-
-### LiveView streams
-
-- **Always** use LiveView streams for collections for assigning regular lists to avoid memory ballooning and runtime termination with the following operations:
-  - basic append of N items - `stream(socket, :messages, [new_msg])`
-  - resetting stream with new items - `stream(socket, :messages, [new_msg], reset: true)` (e.g. for filtering items)
-  - prepend to stream - `stream(socket, :messages, [new_msg], at: -1)`
-  - deleting items - `stream_delete(socket, :messages, msg)`
-
-- When using the `stream/3` interfaces in the LiveView, the LiveView template must 1) always set `phx-update="stream"` on the parent element, with a DOM id on the parent element like `id="messages"` and 2) consume the `@streams.stream_name` collection and use the id as the DOM id for each child. For a call like `stream(socket, :messages, [new_msg])` in the LiveView, the template would be:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, msg} <- @streams.messages} id={id}>
-          {msg.text}
-        </div>
-      </div>
-
-- LiveView streams are *not* enumerable, so you cannot use `Enum.filter/2` or `Enum.reject/2` on them. Instead, if you want to filter, prune, or refresh a list of items on the UI, you **must refetch the data and re-stream the entire stream collection, passing reset: true**:
-
-      def handle_event("filter", %{"filter" => filter}, socket) do
-        # re-fetch the messages based on the filter
-        messages = list_messages(filter)
-
-        {:noreply,
-         socket
-         |> assign(:messages_empty?, messages == [])
-         # reset the stream with the new messages
-         |> stream(:messages, messages, reset: true)}
-      end
-
-- LiveView streams *do not support counting or empty states*. If you need to display a count, you must track it using a separate assign. For empty states, you can use Tailwind classes:
-
-      <div id="tasks" phx-update="stream">
-        <div class="hidden only:block">No tasks yet</div>
-        <div :for={{id, task} <- @streams.tasks} id={id}>
-          {task.name}
-        </div>
-      </div>
-
-  The above only works if the empty state is the only HTML block alongside the stream for-comprehension.
-
-- When updating an assign that should change content inside any streamed item(s), you MUST re-stream the items
-  along with the updated assign:
-
-      def handle_event("edit_message", %{"message_id" => message_id}, socket) do
-        message = Chat.get_message!(message_id)
-        edit_form = to_form(Chat.change_message(message, %{content: message.content}))
-
-        # re-insert message so @editing_message_id toggle logic takes effect for that stream item
-        {:noreply,
-         socket
-         |> stream_insert(:messages, message)
-         |> assign(:editing_message_id, String.to_integer(message_id))
-         |> assign(:edit_form, edit_form)}
-      end
-
-  And in the template:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, message} <- @streams.messages} id={id} class="flex group">
-          {message.username}
-          <%= if @editing_message_id == message.id do %>
-            <%!-- Edit mode --%>
-            <.form for={@edit_form} id="edit-form-#{message.id}" phx-submit="save_edit">
-              ...
-            </.form>
-          <% end %>
-        </div>
-      </div>
-
-- **Never** use the deprecated `phx-update="append"` or `phx-update="prepend"` for collections
-
-### LiveView JavaScript interop
-
-- Remember anytime you use `phx-hook="MyHook"` and that JS hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
-- **Always** provide an unique DOM id alongside `phx-hook` otherwise a compiler error will be raised
-
-LiveView hooks come in two flavors, 1) colocated js hooks for "inline" scripts defined inside HEEx,
-and 2) external `phx-hook` annotations where JavaScript object literals are defined and passed to the `LiveSocket` constructor.
-
-#### Inline colocated js hooks
-
-**Never** write raw embedded `<script>` tags in heex as they are incompatible with LiveView.
-Instead, **always use a colocated js hook script tag (`:type={Phoenix.LiveView.ColocatedHook}`)
-when writing scripts inside the template**:
-
-    <input type="text" name="user[phone_number]" id="user-phone-number" phx-hook=".PhoneNumber" />
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".PhoneNumber">
-      export default {
-        mounted() {
-          this.el.addEventListener("input", e => {
-            let match = this.el.value.replace(/\D/g, "").match(/^(\d{3})(\d{3})(\d{4})$/)
-            if(match) {
-              this.el.value = `${match[1]}-${match[2]}-${match[3]}`
-            }
-          })
-        }
-      }
-    </script>
-
-- colocated hooks are automatically integrated into the app.js bundle
-- colocated hooks names **MUST ALWAYS** start with a `.` prefix, i.e. `.PhoneNumber`
-
-#### External phx-hook
-
-External JS hooks (`<div id="myhook" phx-hook="MyHook">`) must be placed in `assets/js/` and passed to the
-LiveSocket constructor:
-
-    const MyHook = {
-      mounted() { ... }
-    }
-    let liveSocket = new LiveSocket("/live", Socket, {
-      hooks: { MyHook }
-    });
-
-#### Pushing events between client and server
-
-Use LiveView's `push_event/3` when you need to push events/data to the client for a phx-hook to handle.
-**Always** return or rebind the socket on `push_event/3` when pushing events:
-
-    # re-bind socket so we maintain event state to be pushed
-    socket = push_event(socket, "my_event", %{...})
-
-    # or return the modified socket directly:
-    def handle_event("some_event", _, socket) do
-      {:noreply, push_event(socket, "my_event", %{...})}
-    end
-
-Pushed events can then be picked up in a JS hook with `this.handleEvent`:
-
-    mounted() {
-      this.handleEvent("my_event", data => console.log("from server:", data));
-    }
-
-Clients can also push an event to the server and receive a reply with `this.pushEvent`:
-
-    mounted() {
-      this.el.addEventListener("click", e => {
-        this.pushEvent("my_event", { one: 1 }, reply => console.log("got reply from server:", reply));
-      })
-    }
-
-Where the server handled it via:
-
-    def handle_event("my_event", %{"one" => 1}, socket) do
-      {:reply, %{two: 2}, socket}
-    end
-
-### LiveView tests
-
-- `Phoenix.LiveViewTest` module and `LazyHTML` (included) for making your assertions
-- Form tests are driven by `Phoenix.LiveViewTest`'s `render_submit/2` and `render_change/2` functions
-- Come up with a step-by-step test plan that splits major test cases into small, isolated files. You may start with simpler tests that verify content exists, gradually add interaction tests
-- **Always reference the key element IDs you added in the LiveView templates in your tests** for `Phoenix.LiveViewTest` functions like `element/2`, `has_element/2`, selectors, etc
-- **Never** tests again raw HTML, **always** use `element/2`, `has_element/2`, and similar: `assert has_element?(view, "#my-form")`
-- Instead of relying on testing text content, which can change, favor testing for the presence of key elements
-- Focus on testing outcomes rather than implementation details
-- Be aware that `Phoenix.Component` functions like `<.form>` might produce different HTML than expected. Test against the output HTML structure, not your mental model of what you expect it to be
-- When facing test failures with element selectors, add debug statements to print the actual HTML, but use `LazyHTML` selectors to limit the output, ie:
-
-      html = render(view)
-      document = LazyHTML.from_fragment(html)
-      matches = LazyHTML.filter(document, "your-complex-selector")
-      IO.inspect(matches, label: "Matches")
+## Error Handling
+
+```elixir
+case ReqLLM.generate_text("anthropic:claude-haiku-4-5", "Hello") do
+  {:ok, response} -> response.text
+  {:error, %ReqLLM.Error.API.RateLimit{retry_after: seconds}} -> 
+    :timer.sleep(seconds * 1000)
+  {:error, %ReqLLM.Error.API.Authentication{}} -> 
+    {:error, :auth_failed}
+  {:error, error} -> 
+    {:error, :unknown}
+end
+```
+
+## Essential Options
+
+- `:temperature` - Randomness (0.0-2.0)
+- `:max_tokens` - Response length limit
+- `:tools` - Function calling definitions
+- `:system_prompt` - System message
+- `:provider_options` - Provider-specific parameters
+- `:api_key` - Override stored key
+
+<!-- req_llm-end -->
+<!-- ex_check_ng-start -->
+## ex_check_ng usage
+_ex_check_ng_
+
+# ex_check usage rules
+
+ex_check provides the `mix check` task: it runs all of a project's code analysis &
+testing tools (compiler, formatter, credo, dialyzer, tests, security scanners, ...) in
+parallel with one command, and reports every failure in a single run.
+
+## Running
+
+```
+mix check
+```
+
+Runs every detected tool. Tools whose package or required files are absent are skipped
+automatically — you do not need to configure them. Exit status is non-zero if any tool
+fails.
+
+For machine-readable output (preferred when an agent parses results):
+
+```
+mix check --format agent              # JSON status header + raw failure blocks
+mix check --format json --output check.json
+```
+
+## Useful flags
+
+- `--only NAME` / `-o NAME` — run only the named tool(s); repeatable. e.g. `mix check -o credo -o ex_unit`
+- `--except NAME` / `-x NAME` — skip the named tool(s); repeatable.
+- `--fix` / `-f` — auto-fix what can be fixed (e.g. `mix format`, unlock unused deps).
+- `--retry` / `-r` — run only tools that failed in the previous run.
+- `--no-parallel` — run tools sequentially.
+- `--config PATH` / `-c PATH` — use a specific config file.
+- `--format pretty|agent|json` — output format (default `pretty`).
+- `--output PATH` — write the report to a file (only with `--format agent` or `json`).
+
+Combine `--fix --retry` to fix only the tools that just failed.
+
+## Configuration: `.check.exs`
+
+Generate a commented starter config:
+
+```
+mix check.gen.config
+```
+
+`.check.exs` returns a keyword list. Root keys:
+
+- `:tools` — list of tool tuples (overrides/extends the curated set).
+- `:fix` — `true` to always run fix mode (default `false`).
+- `:parallel` — `false` to disable parallelism (default `true`).
+- `:retry` — `false` to disable auto-retry (default: on when a manifest exists).
+- `:skipped` — `false` to hide skipped tools in the summary.
+
+Tool tuple forms:
+
+```elixir
+{:credo, false}                              # disable a curated tool
+{:credo, "mix credo --strict"}               # override the command
+{:my_task, "mix my_task"}                    # add a custom mix task
+{:my_tool, ["my_tool", "arg with spaces"]}   # add an arbitrary command
+{:npm_test, command: "npm test", cd: "assets", env: %{"CI" => "true"}}
+```
+
+Example `.check.exs`:
+
+```elixir
+[
+  tools: [
+    {:dialyzer, false},
+    {:credo, "mix credo --strict"},
+    {:my_audit, "mix my_audit"}
+  ]
+]
+```
+
+Local-only overrides go in `~/.check.exs` (e.g. `[fix: true]`). Umbrella projects run
+tools recursively per child app by default; tune via each tool's `:umbrella` option.
+
+## Curated tools
+
+`mix check` runs these when detected:
+
+- `compiler` — `mix compile --warnings-as-errors`
+- `formatter` — `mix format --check-formatted` (fix: `mix format`)
+- `unused_deps` — `mix deps.unlock --check-unused` (fix: `--unused`)
+- `credo` — `mix credo`
+- `dialyzer` — `mix dialyzer` (needs `:dialyxir`)
+- `doctor` — `mix doctor` (needs `:doctor`)
+- `ex_doc` — `mix docs` (needs `:ex_doc`)
+- `sobelow` — `mix sobelow --exit` (needs `:sobelow`)
+- `mix_audit` — `mix deps.audit` (needs `:mix_audit`)
+- `gettext` — `mix gettext.extract --check-up-to-date` (needs `:gettext`)
+- `ex_unit` — `mix test` (retry: `mix test --failed`)
+- `npm_test` — `npm test` in `assets/` (needs `package.json`)
+
+## Agent guidance
+
+- Run `mix check` before considering an Elixir change complete — it surfaces compile
+  warnings, format drift, credo/dialyzer/test failures in one pass.
+- Prefer `mix check --format agent` for parseable output.
+- Use `mix check --fix` to resolve formatting and unused-dep issues automatically.
+- Do not add tools that aren't installed; ex_check auto-skips missing ones.
+- To narrow a slow run while iterating, use `-o`/`--only`.
+
+<!-- ex_check_ng-end -->
+<!-- usage-rules-end -->
