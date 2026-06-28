@@ -80,7 +80,7 @@ app is (re)started under [supervisord](https://manual.uberspace.de/daemons-super
 1. Copy `.envrc.private.example` → `.envrc.private` and set `UBERSPACE_USER` /
    `UBERSPACE_SERVER` (then `direnv allow`).
 2. Copy `bin/ownership_ash_chat.ini.example` → `bin/ownership_ash_chat.ini` and fill in
-   `USER`, `PHX_HOST`, `DATABASE_URL`, `OPENROUTER_API_KEY`, and the two secrets
+   `USER`, `PHX_HOST`, `DATABASE_PATH`, `OPENROUTER_API_KEY`, and the two secrets
    (`mix phx.gen.secret` for `SECRET_KEY_BASE` and `TOKEN_SIGNING_SECRET`). This file is
    gitignored and synced to `~/etc/services.d/` by the deploy script. It is the **single
    source of truth** for prod env: `bin/release.sh` parses its `environment=` block for
@@ -99,8 +99,8 @@ then run migrations via the release's `bin/migrate`), and `bin/restart_service.s
 After the first deploy, [open a web backend on Uberspace](https://manual.uberspace.de/web-backends/#specific-path)
 pointing at the `PORT` from `ownership_ash_chat.ini` (default `4001`).
 
-> **Database:** this branch ships the deploy tooling; `DATABASE_URL` points at the prod
-> database. Provision/point it at whatever data layer prod uses.
+> **Database:** prod uses SQLite (AshSqlite). `DATABASE_PATH` points at the prod `.db`
+> file; exqlite links uberspace's system SQLite at build time (see `bin/install.sh`).
 
 ### Building a release
 

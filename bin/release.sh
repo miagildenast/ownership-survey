@@ -11,7 +11,7 @@ export MIX_ENV="prod"
 mix release --overwrite
 
 ## load prod secrets/env for the migrate step.
-## runtime.exs requires DATABASE_URL, SECRET_KEY_BASE, TOKEN_SIGNING_SECRET and
+## runtime.exs requires DATABASE_PATH, SECRET_KEY_BASE, TOKEN_SIGNING_SECRET and
 ## OPENROUTER_API_KEY in :prod for *every* release command (including `eval`).
 ## Single source of truth is the supervisord ini: we parse its `environment=`
 ## block (indented KEY="val", lines, comments and trailing commas stripped) so

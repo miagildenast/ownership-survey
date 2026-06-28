@@ -5,18 +5,13 @@ environment=
     MIX_ENV="prod",
     PORT=4001,
     PHX_HOST=USER.uber.space,
-    DATABASE_URL="ecto://USER:PASS@127.0.0.1/ownership_ash_chat_prod",
-    POOL_SIZE=10,
+    DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
     SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
     TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",
     OPENROUTER_API_KEY="!! your OpenRouter API key !!",
     LLM_MODEL="openai/gpt-oss-120b:free",
     LLM_BASE_URL="https://openrouter.ai/api/v1"
-    # once on sqlite, swap DATABASE_URL above for DATABASE_PATH, e.g.
-    # DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
-    # and use uberspace's system sqlite:
-    # EXQLITE_USE_SYSTEM="1",
-    # EXQLITE_SYSTEM_CFLAGS="-I/usr/include",
-    # EXQLITE_SYSTEM_LDFLAGS="-L/lib64/sqlite -lsqlite3"
+    # SQLite is built against uberspace's system lib at deploy time
+    # (see bin/install.sh: EXQLITE_USE_SYSTEM). No runtime EXQLITE env needed.
 autostart=yes
 autorestart=yes
