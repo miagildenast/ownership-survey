@@ -1,5 +1,27 @@
 import Config
-config :req_llm, openai_api_key: System.get_env("OPENAI_API_KEY")
+llm_config =
+  if config_env() == :prod do
+    [
+      model: System.get_env("LLM_MODEL", "anthropic:claude-sonnet-4-5"),
+      req_llm_opts: [
+        api_key:
+          System.get_env("ANTHROPIC_API_KEY") ||
+            raise("Missing environment variable ANTHROPIC_API_KEY")
+      ]
+    ]
+  else
+    # dev/test: lokal gehostet via LM Studio (OpenAI-kompatibel)
+    [
+      model: %{
+        provider: :openai,
+        id: System.get_env("LLM_MODEL", "google/gemma-3n-e4b"),
+        base_url: System.get_env("LLM_BASE_URL", "http://localhost:1234/v1")
+      },
+      req_llm_opts: [api_key: System.get_env("LLM_API_KEY", "lm-studio")]
+    ]
+  end
+
+config :ownership_ash_chat, :llm, llm_config
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the

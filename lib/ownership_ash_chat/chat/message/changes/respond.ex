@@ -32,8 +32,9 @@ defmodule OwnershipAshChat.Chat.Message.Changes.Respond do
         prompt_messages
         |> AshAi.ToolLoop.stream(
           otp_app: :ownership_ash_chat,
-          tools: true,
-          model: "openai:gpt-4o",
+          tools: false,
+          model: OwnershipAshChat.LLM.model(),
+          req_llm_opts: OwnershipAshChat.LLM.req_llm_opts(),
           actor: context.actor,
           tenant: context.tenant,
           context: Map.new(Ash.Context.to_opts(context))

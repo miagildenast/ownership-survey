@@ -33,7 +33,11 @@ defmodule OwnershipAshChat.Chat.Conversation.Changes.GenerateName do
             end
           end)
 
-      ReqLLM.generate_text("openai:gpt-4o", prompt_messages)
+      ReqLLM.generate_text(
+        OwnershipAshChat.LLM.model(),
+        prompt_messages,
+        OwnershipAshChat.LLM.req_llm_opts()
+      )
       |> case do
         {:ok, response} ->
           Ash.Changeset.force_change_attribute(
