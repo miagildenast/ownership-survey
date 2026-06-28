@@ -1,4 +1,5 @@
 import Config
+config :req_llm, openai_api_key: System.get_env("OPENAI_API_KEY")
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the

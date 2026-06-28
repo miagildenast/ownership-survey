@@ -7,12 +7,13 @@
 # General application configuration
 import Config
 
+config :mdex_native, syntax_highlighter: :lumis
 config :ash_oban, pro?: false
 
 config :ownership_ash_chat, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
-  queues: [default: 10],
+  queues: [default: 10, chat_responses: [limit: 10], conversations: [limit: 10]],
   repo: OwnershipAshChat.Repo,
   plugins: [{Oban.Plugins.Cron, []}]
 
@@ -66,7 +67,7 @@ config :spark,
 config :ownership_ash_chat,
   ecto_repos: [OwnershipAshChat.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [OwnershipAshChat.Accounts]
+  ash_domains: [OwnershipAshChat.Chat, OwnershipAshChat.Accounts]
 
 # Configure the endpoint
 config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,
