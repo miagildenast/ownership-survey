@@ -27,6 +27,9 @@ defmodule OwnershipAshChat.Study.Session do
       upsert_identity :unique_case_id
       # On resume, leave the existing record untouched and return it as-is.
       upsert_fields []
+      # Draw randomization + seed the 4 writing runs on fresh insert; idempotent on
+      # resume (see SeedRuns).
+      change OwnershipAshChat.Study.Session.Changes.SeedRuns
     end
 
     # Export reads (step 8): JSON is only an on-demand artifact, generated from

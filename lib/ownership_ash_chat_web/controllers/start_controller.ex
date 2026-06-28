@@ -21,19 +21,7 @@ defmodule OwnershipAshChatWeb.StartController do
 
         conn
         |> put_session(:session_id, session.id)
-        |> redirect(to: ~p"/study/started")
-    end
-  end
-
-  def show(conn, _params) do
-    case get_session(conn, :session_id) do
-      nil ->
-        conn
-        |> put_flash(:error, "No active study session. Please use your access link.")
-        |> redirect(to: ~p"/")
-
-      session_id ->
-        render(conn, :started, session_id: session_id)
+        |> redirect(to: ~p"/study")
     end
   end
 end

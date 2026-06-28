@@ -47,7 +47,9 @@ defmodule OwnershipAshChatWeb.Router do
 
     # Token entry (replaces auth): upstream tool links to /start?case_id=…
     get "/start", StartController, :start
-    get "/study/started", StartController, :show
+
+    # Session-driven writing flow; reads session_id from the cookie set at entry.
+    live "/study", StudySessionLive
 
     auth_routes AuthController, OwnershipAshChat.Accounts.User, path: "/auth"
     sign_out_route AuthController
@@ -113,6 +115,8 @@ defmodule OwnershipAshChatWeb.Router do
     scope "/dev", OwnershipAshChatWeb do
       pipe_through :browser
 
+      # One-click entry: create a randomized session and jump into /study.
+      get "/study/new", DevStudyController, :new
       live "/study/run/:run_id", StudyWritingLive
     end
   end

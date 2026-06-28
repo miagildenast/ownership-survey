@@ -10,6 +10,8 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   """
   use OwnershipAshChatWeb, :live_view
 
+  import OwnershipAshChatWeb.StudyComponents
+
   alias OwnershipAshChat.Study
   alias OwnershipAshChat.Study.Likert
   alias OwnershipAshChat.Study.PingPong
@@ -67,14 +69,6 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
 
   defp line_count(transcript), do: length(transcript || [])
 
-  defp passage_role(%{"role" => role}), do: role
-  defp passage_role(%{role: role}), do: to_string(role)
-  defp passage_role(_), do: nil
-
-  defp passage_text(%{"text" => text}), do: text
-  defp passage_text(%{text: text}), do: text
-  defp passage_text(_), do: ""
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -87,76 +81,11 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
           </p>
         </header>
 
-        <section class="rounded-xl border border-base-300 p-4 space-y-3">
-          <h2 class="font-medium">Thema</h2>
-          <p :if={@run.topic} class="text-base-content/80">{@run.topic}</p>
-          <.form
-            :if={@run.topic_source == :free}
-            for={%{}}
-            id="topic-form"
-            phx-submit="set_topic"
-            class="flex gap-2 items-end"
-          >
-            <.input type="text" name="topic" value={@run.topic || ""} label="Thema wählen" />
-            <.button>Speichern</.button>
-          </.form>
-        </section>
+        <.run_panel run={@run} can_add_passage?={@can_add_passage?} lines_done?={@lines_done?} />
 
-        <section class="rounded-xl border border-base-300 p-4 space-y-3">
-          <h2 class="font-medium">Transkript</h2>
-          <p :if={@run.transcript in [nil, []]} class="text-sm text-base-content/50">
-            Noch keine Passagen.
-          </p>
-          <ul class="space-y-2">
-            <li
-              :for={passage <- @run.transcript || []}
-              class={[
-                "rounded-lg px-3 py-2 text-sm",
-                passage_role(passage) == "ai" && "bg-base-200",
-                passage_role(passage) == "user" && "bg-primary/10"
-              ]}
-            >
-              <span class="font-mono text-xs uppercase text-base-content/50">
-                {passage_role(passage)}
-              </span>
-              <div>{passage_text(passage)}</div>
-            </li>
-          </ul>
-
-          <.form
-            :if={@can_add_passage?}
-            for={%{}}
-            id={"passage-form-#{@line_count}"}
-            phx-submit="add_passage"
-            class="space-y-2"
-          >
-            <.input
-              type="textarea"
-              name="text"
-              value=""
-              label="Deine Passage"
-              phx-mounted={JS.focus()}
-            />
-            <.button>Senden</.button>
-          </.form>
-          <p :if={@lines_done?} class="text-sm text-base-content/60">
-            Schreibphase abgeschlossen ({PingPong.lines()} Zeilen).
-          </p>
-        </section>
-
-        <section class="rounded-xl border border-base-300 p-4 space-y-3">
-          <h2 class="font-medium">Finales Haiku</h2>
-          <p :if={is_nil(@run.final_haiku)} class="text-sm text-base-content/50">
-            Wird nach der dritten Zeile automatisch zusammengesetzt.
-          </p>
-          <pre
-            :if={@run.final_haiku}
-            class="whitespace-pre-wrap text-base-content/80"
-          >{@run.final_haiku}</pre>
-          <p :if={@run.completed_at} class="text-sm text-success">
-            Run abgeschlossen um {@run.completed_at}.
-          </p>
-        </section>
+        <p :if={@run.completed_at} class="text-sm text-success">
+          Run abgeschlossen um {@run.completed_at}.
+        </p>
 
         <section :if={@run.completed_at} class="rounded-xl border border-base-300 p-4 space-y-3">
           <h2 class="font-medium">Fragebogen</h2>

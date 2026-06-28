@@ -236,9 +236,16 @@ after 1; step 8 any time after 1.
    the `case_id` and creates a `session` (`:in_progress`); reject invalid (blank)
    `case_id`.~~ ✅ **Done** — `Session.start` upsert action (resumes on re-entry via
    `unique_case_id` identity), `Study.start_session` code interface,
-   `StartController` (`/start` → session cookie → `/study/started` landing), tests.
-3. **Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
-   per block; create the 4 `kind: :writing` runs with their `run_index`.
+   `StartController` (`/start` → session cookie → `/study` flow), tests.
+3. ~~**Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
+   per block; create the 4 `kind: :writing` runs with their `run_index`.~~ ✅ **Done** —
+   `Study.Randomization.draw_writing_plan/0` (pure: nested block draw, one of 8 sequences);
+   `Session.Changes.SeedRuns` forces `topic_source_order` + `started_at` and seeds the 4
+   `:writing` runs in an `after_action` hook, wired into the `:start` action. Guarded so an
+   upsert resume never re-seeds (idempotent, open question #8). Session-driven flow at
+   `/study` (`StudySessionLive`) walks the runs, **Weiter** button advances on completion;
+   shared `run_panel/1` component; one-click dev entry `/dev/study/new`. Tests:
+   `randomization_test.exs`, `study_test.exs` (seed + idempotency), `study_session_live_test.exs`.
 4. ~~**Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
    existing chat/`Respond`; capture `topic`, `transcript`, `final_haiku` per run.~~ ✅
    **Done** — `Study.{set_run_topic,add_user_passage}` actions persist `topic` /

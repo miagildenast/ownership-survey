@@ -1,9 +1,9 @@
 # OwnershipAshChat — Haiku Study
 
 Phoenix/Ash application backing a research study in which participants write haikus
-(see `AGENTS.md` for the full study concept). Most of the app is still domain + persistence;
-the first human-facing piece is a **dev harness** that lets you walk a single writing run
-end to end in the browser.
+(see `AGENTS.md` for the full study concept). The participant walks a randomized sequence
+of writing runs at `/study`; entry is normally via the upstream `case_id` link, but a
+one-click dev route starts a randomized session locally.
 
 ## Setup
 
@@ -27,11 +27,10 @@ The chatbot is config-driven (`OwnershipAshChat.LLM`):
 Tunable via `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY` / `ANTHROPIC_API_KEY`
 (see `config/runtime.exs`).
 
-## Trying the writing flow (dev harness)
+## Local debug session
 
-The participant entry point (`/start?case_id=…`, randomized runs) is not wired up yet.
-To exercise the writing flow today, create a run by hand and open it in the browser. The
-harness route is only available with `dev_routes` enabled.
+The fastest way to walk the flow locally — no upstream link, no IEx. The dev routes are
+only available with `dev_routes` enabled (the default in `dev`).
 
 **1. Start the server**
 
@@ -39,46 +38,32 @@ harness route is only available with `dev_routes` enabled.
 mix phx.server
 ```
 
-**2. Create a session + run** (second terminal, IEx)
+**2. One-click entry**
 
-```sh
-iex -S mix
-```
+Open [`localhost:4000/dev/study/new`](http://localhost:4000/dev/study/new). This starts a
+fresh session — drawing `topic_source_order` and seeding the four randomized `:writing`
+runs — stashes the `session_id` in your session cookie, and drops you on `/study` at Run 1.
+
+Walk each run: set the topic (for `:free` runs), add your lines (ping-pong with the AI for
+`:with_ai` runs), and once the haiku is complete click **Weiter** to advance. After Run 4
+the end card shows the session id. Reloading mid-flow resumes at the current run.
+
+> `:without_ai` runs need no LLM. `:with_ai` runs call the model for line 2, so they need a
+> backend running (see [LLM backend](#llm-backend)).
+
+### Single-run harness
+
+To drive one run in isolation by id, use
+[`/dev/study/run/:run_id`](http://localhost:4000/dev/study/run). Create a run in IEx
+(`iex -S mix`):
 
 ```elixir
-s = OwnershipAshChat.Study.create_session!(%{
-  case_id: "local-6",
-  topic_source_order: [:free, :assigned]
-})
-
-# without_ai — no LLM needed:
-#r = OwnershipAshChat.Study.create_run!(%{
-#  run_index: 1,
-#  topic_source: :free,
-#  ai_mode: :without_ai,
-#  session_id: s.id
-#})
-
-# with_ai — ping-pong, needs an LLM backend (e.g. LM Studio on localhost:1234):
-r = OwnershipAshChat.Study.create_run!(%{
-  run_index: 1,
-  topic_source: :free,
-  ai_mode: :with_ai,
-  session_id: s.id
-})
-
-r.id
+s = OwnershipAshChat.Study.start_session!(%{case_id: "local-#{System.unique_integer([:positive])}"})
+r = hd(OwnershipAshChat.Study.get_session!(s.id, load: [:runs]).runs)
 "http://localhost:4000/dev/study/run/#{r.id}"
 ```
 
-**3. Open the run in the browser** — use the `r.id` printed above:
-
-```
-http://localhost:4000/dev/study/run/<RUN_ID>
-```
-
-There you can set the topic (for `:free`), add passages (ping-pong with the AI for
-`:with_ai`), and record the final haiku.
+Other dev tooling: LiveDashboard at `/dev/dashboard`, mailbox preview at `/dev/mailbox`.
 
 ## Learn more
 

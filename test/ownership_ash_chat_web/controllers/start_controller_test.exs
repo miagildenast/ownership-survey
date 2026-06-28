@@ -4,10 +4,10 @@ defmodule OwnershipAshChatWeb.StartControllerTest do
   defp case_id, do: "case-#{System.unique_integer([:positive])}"
 
   describe "GET /start" do
-    test "creates a session and redirects to the landing", %{conn: conn} do
+    test "creates a session and redirects to the study flow", %{conn: conn} do
       conn = get(conn, ~p"/start?#{%{case_id: case_id()}}")
 
-      assert redirected_to(conn) == ~p"/study/started"
+      assert redirected_to(conn) == ~p"/study"
       assert get_session(conn, :session_id)
     end
 
@@ -32,21 +32,6 @@ defmodule OwnershipAshChatWeb.StartControllerTest do
 
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :session_id)
-    end
-  end
-
-  describe "GET /study/started" do
-    test "renders the stored session_id", %{conn: conn} do
-      conn = get(conn, ~p"/start?#{%{case_id: case_id()}}")
-      session_id = get_session(conn, :session_id)
-
-      conn = get(conn, ~p"/study/started")
-      assert html_response(conn, 200) =~ session_id
-    end
-
-    test "redirects when there is no active session", %{conn: conn} do
-      conn = get(conn, ~p"/study/started")
-      assert redirected_to(conn) == ~p"/"
     end
   end
 end

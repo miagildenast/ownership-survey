@@ -42,6 +42,38 @@ defmodule OwnershipAshChat.StudyTest do
       assert first.id == second.id
     end
 
+    test "draws topic_source_order and seeds 4 writing runs" do
+      case_id = "case-#{System.unique_integer([:positive])}"
+      session = Study.start_session!(%{case_id: case_id})
+
+      assert Enum.sort(session.topic_source_order) == [:assigned, :free]
+      refute is_nil(session.started_at)
+
+      loaded = Study.get_session!(session.id, load: [:runs])
+      runs = Enum.sort_by(loaded.runs, & &1.run_index)
+
+      assert length(runs) == 4
+      assert Enum.map(runs, & &1.run_index) == [1, 2, 3, 4]
+      assert Enum.all?(runs, &(&1.kind == :writing))
+
+      # Runs follow the drawn block order; both ai_modes appear in each block.
+      [r1, r2, r3, r4] = runs
+      assert [r1.topic_source, r3.topic_source] == session.topic_source_order
+      assert r1.topic_source == r2.topic_source
+      assert r3.topic_source == r4.topic_source
+      assert Enum.sort([r1.ai_mode, r2.ai_mode]) == [:with_ai, :without_ai]
+      assert Enum.sort([r3.ai_mode, r4.ai_mode]) == [:with_ai, :without_ai]
+    end
+
+    test "re-entry does not duplicate runs (idempotent seed)" do
+      case_id = "case-#{System.unique_integer([:positive])}"
+      first = Study.start_session!(%{case_id: case_id})
+      Study.start_session!(%{case_id: case_id})
+
+      loaded = Study.get_session!(first.id, load: [:runs])
+      assert length(loaded.runs) == 4
+    end
+
     test "rejects a blank case_id" do
       assert {:error, _} = Study.start_session(%{case_id: ""})
     end
