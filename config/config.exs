@@ -67,7 +67,7 @@ config :spark,
 config :ownership_ash_chat,
   ecto_repos: [OwnershipAshChat.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [OwnershipAshChat.Chat, OwnershipAshChat.Accounts]
+  ash_domains: [OwnershipAshChat.Study, OwnershipAshChat.Chat, OwnershipAshChat.Accounts]
 
 # Configure the endpoint
 config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,

@@ -225,9 +225,11 @@ code from memory, stop and redo it against the references.
 Build dependencies first. Critical path: 1 → 3 → 4 → 5 → 6 → 7. Step 2 can run in parallel
 after 1; step 8 any time after 1.
 
-1. **Domain + persistence** (foundation) — a `Study` domain (or extend `Chat`); enums
+1. ~~**Domain + persistence** (foundation) — a `Study` domain (or extend `Chat`); enums
    `topic_source`, `ai_mode`, `run_kind`, `variant`; `session` and `run` resources
-   (AshPostgres, `has_many`/`belongs_to`); `mix ash.codegen` → migration.
+   (AshPostgres, `has_many`/`belongs_to`); `mix ash.codegen` → migration.~~ ✅ **Done** —
+   `OwnershipAshChat.Study` domain, `Types.{TopicSource,AiMode,RunKind,Variant,SessionStatus}`,
+   `Session has_many Run` (FK cascade), migration + tests (`Ash.Generator`).
 2. **Token entry** (replaces auth) — route `/start?token=…`; action that resolves the token
    to a `case_id` and creates a `session` (`:in_progress`); reject invalid tokens.
 3. **Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
