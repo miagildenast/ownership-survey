@@ -183,11 +183,23 @@ attribute names (snake_case); exported JSON keys mirror them.
 ## Technical context (current state)
 
 - Phoenix/Ash application with an existing chat (LiveView, generated via `ash_ai.gen.chat`).
-- The LLM is config-driven (`OwnershipAshChat.LLM`): prod via Anthropic/Claude, local via
-  LM Studio. See `config/runtime.exs`.
+- The LLM is config-driven (`OwnershipAshChat.LLM`, `lib/ownership_ash_chat/llm.ex`): prod
+  via Anthropic/Claude, dev/test via a local OpenAI-compatible endpoint (LM Studio). Config
+  lives in `config/runtime.exs` (env-branched), tunable via `LLM_MODEL`, `LLM_BASE_URL`,
+  `LLM_API_KEY` / `ANTHROPIC_API_KEY`.
+- **Tools are disabled** in `Chat.Message.Changes.Respond` (`tools: false`): the local
+  model (Gemma) has no reliable function-calling, and the study does not need tools. The
+  chat runs as a plain streaming text flow.
 - The existing chat flow (`Chat.Message.Changes.Respond`, `Chat.Conversation`) is the base,
   but must be adapted for the study setup (phases, conditions, ping-pong logic,
   questionnaires, token entry instead of auth).
+
+### Repo conventions
+
+- **`AGENTS.md` is the single source of truth**; `CLAUDE.md` is a symlink to it. Edit
+  `AGENTS.md`, never `CLAUDE.md` directly.
+- `mix usage_rules.sync` targets `AGENTS.md` (see `mix.exs`) and only rewrites the
+  `<!-- usage-rules-* -->` managed block — content above it (this description) is safe.
 
 ## Implementation plan (lean, in order)
 
