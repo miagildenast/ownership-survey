@@ -160,7 +160,10 @@ defmodule OwnershipAshChat.StudyTest do
     test "sets the final haiku and stamps completed_at" do
       run = generate(run())
 
-      updated = Study.set_final_haiku!(run, %{final_haiku: "alter Teich\nFrosch springt hinein\nWasserklang"})
+      updated =
+        Study.set_final_haiku!(run, %{
+          final_haiku: "alter Teich\nFrosch springt hinein\nWasserklang"
+        })
 
       assert updated.final_haiku =~ "Wasserklang"
       refute is_nil(updated.completed_at)

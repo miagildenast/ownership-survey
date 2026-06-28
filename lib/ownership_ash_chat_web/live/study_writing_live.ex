@@ -45,7 +45,9 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   defp can_add_passage?(%{ai_mode: :with_ai} = run), do: not rounds_done?(run)
   defp can_add_passage?(run), do: is_nil(run.completed_at)
 
-  defp rounds_done?(%{ai_mode: :with_ai} = run), do: user_count(run.transcript) >= PingPong.rounds()
+  defp rounds_done?(%{ai_mode: :with_ai} = run),
+    do: user_count(run.transcript) >= PingPong.rounds()
+
   defp rounds_done?(_run), do: true
 
   defp user_count(transcript) do
@@ -127,7 +129,12 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
           <h2 class="font-medium">Finales Haiku</h2>
           <pre :if={@run.final_haiku} class="whitespace-pre-wrap text-base-content/80">{@run.final_haiku}</pre>
           <.form for={%{}} id="final-haiku-form" phx-submit="set_final_haiku" class="space-y-2">
-            <.input type="textarea" name="final_haiku" value={@run.final_haiku || ""} label="Haiku eintragen" />
+            <.input
+              type="textarea"
+              name="final_haiku"
+              value={@run.final_haiku || ""}
+              label="Haiku eintragen"
+            />
             <.button>Abschließen</.button>
           </.form>
           <p :if={@run.completed_at} class="text-sm text-success">
