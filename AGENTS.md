@@ -116,13 +116,15 @@ An additional, **fifth run** builds on the results:
 ## Access & Identification
 
 - **No classic login** (no username/password).
-- Participants enter the application via a link with a token:
+- Participants enter the application via a link carrying a `case_id`:
   ```
-  /start?token=%caseToken%
+  /start?case_id=%caseToken%
   ```
   The `%caseToken%` placeholder is filled by the **upstream study tool** (e.g. a
-  survey/panel software). The token identifies the case.
-- The **caseId** is derived from / mapped to the token.
+  survey/panel software) into the `case_id` query param. The value identifies the case.
+- The **`case_id`** is the value passed in the link; it maps our session to the external
+  tool. (Lean first pass: the value is treated as the `case_id` verbatim — no
+  signature/expiry yet; see open question #6.)
 
 ### Return to the originating tool
 
@@ -132,7 +134,7 @@ An additional, **fifth run** builds on the results:
 
 ## Participant flow (high level)
 
-1. Entry via `/start?token=…`.
+1. Entry via `/start?case_id=…`.
 2. Four runs in nested-block order (both `ai_mode` values of one `topic_source`, then the
    next `topic_source` — see Study Design):
    - optional topic display / topic choice (depending on `topic_source`),
@@ -149,9 +151,9 @@ a **`session`** resource `has_many` **`run`** resources. JSON is **not** the sto
 with its `runs` and serialize, e.g. via `Jason`). Field names below are the proposed domain
 attribute names (snake_case); exported JSON keys mirror them.
 
-### `session` (one per participant / `case_token`)
+### `session` (one per participant / `case_id`)
 
-- `case_id` – derived from the entry token; mapping to the external tool
+- `case_id` – the value from the entry link; mapping to the external tool
 - `session_id` (UUID) – the id shown at the end for later matching
 - `topic_source_order` – randomized order of the two `topic_source` blocks, e.g.
   `[:free, :assigned]`
@@ -192,7 +194,7 @@ attribute names (snake_case); exported JSON keys mirror them.
   chat runs as a plain streaming text flow.
 - The existing chat flow (`Chat.Message.Changes.Respond`, `Chat.Conversation`) is the base,
   but must be adapted for the study setup (phases, conditions, ping-pong logic,
-  questionnaires, token entry instead of auth).
+  questionnaires, `case_id` entry instead of auth).
 
 ### Repo conventions
 
@@ -230,8 +232,11 @@ after 1; step 8 any time after 1.
    (AshPostgres, `has_many`/`belongs_to`); `mix ash.codegen` → migration.~~ ✅ **Done** —
    `OwnershipAshChat.Study` domain, `Types.{TopicSource,AiMode,RunKind,Variant,SessionStatus}`,
    `Session has_many Run` (FK cascade), migration + tests (`Ash.Generator`).
-2. **Token entry** (replaces auth) — route `/start?token=…`; action that resolves the token
-   to a `case_id` and creates a `session` (`:in_progress`); reject invalid tokens.
+2. ~~**`case_id` entry** (replaces auth) — route `/start?case_id=…`; action that resolves
+   the `case_id` and creates a `session` (`:in_progress`); reject invalid (blank)
+   `case_id`.~~ ✅ **Done** — `Session.start` upsert action (resumes on re-entry via
+   `unique_case_id` identity), `Study.start_session` code interface,
+   `StartController` (`/start` → session cookie → `/study/started` landing), tests.
 3. **Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
    per block; create the 4 `kind: :writing` runs with their `run_index`.
 4. **Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
@@ -254,14 +259,15 @@ after 1; step 8 any time after 1.
 4. **Ping-pong**: Fixed number of rounds? Who starts (user or AI)? When does a run end?
 5. **Likert questionnaire**: Which concrete items, which scale (e.g. 5- or 7-point)? Same
    items across all five runs?
-6. **Token security**: How is `caseToken` validated (signature, expiry, single use)? What
-   happens on an invalid/missing token?
+6. **`case_id` security**: lean first pass treats the link value as the `case_id` verbatim
+   and rejects only blank/missing (redirect to `/`). Open: signature/expiry/single-use
+   validation.
 7. **Persistence**: resolved — store relationally via AshPostgres (`session` `has_many`
    `run`); JSON is only an on-demand export artifact from a read action, not the storage
    format. Open only: export trigger/format details (single session vs. bulk, file vs.
    download endpoint).
-8. **Re-entry**: May a participant resume an interrupted session (same token)? Or strictly
-   single use?
+8. **Re-entry**: resolved — same `case_id` **resumes** the existing session (upsert on the
+   `unique_case_id` identity), so reloads/back-navigation don't strand the participant.
 9. **UI/chatbot language**: German? English? (Haiku instructions and system prompt
    accordingly.)
 

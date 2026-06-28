@@ -25,6 +25,28 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "start_session/1" do
+    test "creates an in_progress session for a case_id" do
+      case_id = "case-#{System.unique_integer([:positive])}"
+      session = Study.start_session!(%{case_id: case_id})
+
+      assert session.case_id == case_id
+      assert session.status == :in_progress
+    end
+
+    test "resumes the same session on re-entry with the same case_id" do
+      case_id = "case-#{System.unique_integer([:positive])}"
+      first = Study.start_session!(%{case_id: case_id})
+      second = Study.start_session!(%{case_id: case_id})
+
+      assert first.id == second.id
+    end
+
+    test "rejects a blank case_id" do
+      assert {:error, _} = Study.start_session(%{case_id: ""})
+    end
+  end
+
   describe "create_run/1" do
     setup do
       %{session: generate(session())}

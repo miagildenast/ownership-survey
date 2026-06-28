@@ -17,6 +17,17 @@ defmodule OwnershipAshChat.Study.Session do
     create :create do
       accept [:case_id, :topic_source_order, :metadata]
     end
+
+    # Token entry: the upstream tool sends the `case_id` via `/start?case_id=…`.
+    # Upsert on `case_id` so a returning participant resumes the same session
+    # (same `session_id`) instead of creating a duplicate.
+    create :start do
+      accept [:case_id, :metadata]
+      upsert? true
+      upsert_identity :unique_case_id
+      # On resume, leave the existing record untouched and return it as-is.
+      upsert_fields []
+    end
   end
 
   attributes do
@@ -26,6 +37,8 @@ defmodule OwnershipAshChat.Study.Session do
 
     attribute :case_id, :string do
       public? true
+      allow_nil? false
+      constraints min_length: 1
     end
 
     attribute :topic_source_order, {:array, Types.TopicSource} do
@@ -53,5 +66,9 @@ defmodule OwnershipAshChat.Study.Session do
     has_many :runs, OwnershipAshChat.Study.Run do
       public? true
     end
+  end
+
+  identities do
+    identity :unique_case_id, [:case_id]
   end
 end

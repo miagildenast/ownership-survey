@@ -5,6 +5,7 @@ defmodule OwnershipAshChat.Study do
   resources do
     resource OwnershipAshChat.Study.Session do
       define :create_session, action: :create
+      define :start_session, action: :start
       define :get_session, action: :read, get_by: [:id]
     end
 

@@ -44,6 +44,11 @@ defmodule OwnershipAshChatWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # Token entry (replaces auth): upstream tool links to /start?case_id=…
+    get "/start", StartController, :start
+    get "/study/started", StartController, :show
+
     auth_routes AuthController, OwnershipAshChat.Accounts.User, path: "/auth"
     sign_out_route AuthController
 
