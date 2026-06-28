@@ -189,6 +189,27 @@ attribute names (snake_case); exported JSON keys mirror them.
   but must be adapted for the study setup (phases, conditions, ping-pong logic,
   questionnaires, token entry instead of auth).
 
+## Implementation plan (lean, in order)
+
+Build dependencies first. Critical path: 1 → 3 → 4 → 5 → 6 → 7. Step 2 can run in parallel
+after 1; step 8 any time after 1.
+
+1. **Domain + persistence** (foundation) — a `Study` domain (or extend `Chat`); enums
+   `topic_source`, `ai_mode`, `run_kind`, `variant`; `session` and `run` resources
+   (AshPostgres, `has_many`/`belongs_to`); `mix ash.codegen` → migration.
+2. **Token entry** (replaces auth) — route `/start?token=…`; action that resolves the token
+   to a `case_id` and creates a `session` (`:in_progress`); reject invalid tokens.
+3. **Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
+   per block; create the 4 `kind: :writing` runs with their `run_index`.
+4. **Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
+   existing chat/`Respond`; capture `topic`, `transcript`, `final_haiku` per run.
+5. **Likert** — questionnaire at each run's end → store `likert` (items positively coded).
+6. **Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
+   modifies the haiku; ask Likert again.
+7. **End screen** — show `session_id` (UUID) for return to the originating tool; mark
+   session `:completed`.
+8. **Export** — read action loading `session` + `runs`, serialized to JSON.
+
 ## Open questions (to clarify before implementation)
 
 1. **"Best" run for run 5**: highest Likert average, all items positively coded (clarified).
