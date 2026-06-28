@@ -11,6 +11,7 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   use OwnershipAshChatWeb, :live_view
 
   alias OwnershipAshChat.Study
+  alias OwnershipAshChat.Study.Likert
   alias OwnershipAshChat.Study.PingPong
 
   @impl true
@@ -29,13 +30,34 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
     {:noreply, assign_run(socket, run)}
   end
 
+  def handle_event("submit_likert", %{"likert" => answers}, socket) do
+    likert = Map.new(answers, fn {key, value} -> {key, String.to_integer(value)} end)
+    run = Study.submit_likert!(socket.assigns.run, %{likert: likert})
+    {:noreply, assign_run(socket, run)}
+  end
+
   defp assign_run(socket, run) do
     socket
     |> assign(:run, run)
     |> assign(:line_count, line_count(run.transcript))
     |> assign(:lines_done?, lines_done?(run))
     |> assign(:can_add_passage?, can_add_passage?(run))
+    |> assign(:likert_items, Likert.items())
+    |> assign(:likert_options, likert_options())
+    |> assign(:likert_submitted?, likert_submitted?(run))
   end
+
+  # The questionnaire is asked once the writing phase has auto-completed.
+  defp likert_submitted?(run), do: map_size(run.likert || %{}) > 0
+
+  # `<.input type="select">` options as {label, value} pairs, e.g. {"1 – Stimme gar nicht zu", "1"}.
+  defp likert_options do
+    Enum.map(Likert.scale(), fn value ->
+      {"#{value} – #{Map.fetch!(Likert.scale_labels(), value)}", value}
+    end)
+  end
+
+  defp likert_value(run, key), do: Map.get(run.likert || %{}, Atom.to_string(key))
 
   # A run holds exactly `PingPong.lines()` lines (3) regardless of `ai_mode`; once it
   # is full it auto-completes, so no further passages are accepted.
@@ -134,6 +156,40 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
           <p :if={@run.completed_at} class="text-sm text-success">
             Run abgeschlossen um {@run.completed_at}.
           </p>
+        </section>
+
+        <section :if={@run.completed_at} class="rounded-xl border border-base-300 p-4 space-y-3">
+          <h2 class="font-medium">Fragebogen</h2>
+
+          <.form
+            :if={not @likert_submitted?}
+            for={%{}}
+            id="likert-form"
+            phx-submit="submit_likert"
+            class="space-y-4"
+          >
+            <.input
+              :for={item <- @likert_items}
+              type="select"
+              name={"likert[#{item.key}]"}
+              options={@likert_options}
+              value={likert_value(@run, item.key)}
+              prompt="Bitte wählen"
+              label={item.prompt}
+              required
+            />
+            <.button>Fragebogen absenden</.button>
+          </.form>
+
+          <div :if={@likert_submitted?} class="space-y-2">
+            <p class="text-sm text-success">Fragebogen gespeichert.</p>
+            <ul class="space-y-1 text-sm">
+              <li :for={item <- @likert_items} class="flex justify-between gap-4">
+                <span class="text-base-content/80">{item.prompt}</span>
+                <span class="font-mono">{likert_value(@run, item.key)}</span>
+              </li>
+            </ul>
+          </div>
         </section>
       </div>
     </Layouts.app>

@@ -274,7 +274,15 @@ after 1; step 8 any time after 1.
    run — assembling `final_haiku` from the transcript (joined by `\n`, **never** entered by
    the user) and stamping `completed_at`. Replaced the old `ping_pong_rounds` user-count
    rule; the standalone `set_final_haiku` action was removed.
-5. **Likert** — questionnaire at each run's end → store `likert` (items positively coded).
+5. ~~**Likert** — questionnaire at each run's end → store `likert` (items positively
+   coded).~~ ✅ **Done** — `OwnershipAshChat.Study.Likert` is the single source of truth for
+   items + scale (3 placeholder items, 5-point scale `1..5`; final items are open question
+   #5). `Run.submit_likert` (`accept [:likert]`) stores the answer map, validated by
+   `Run.Validations.LikertAnswers` (exactly the expected keys, every value within the
+   scale); code interface `Study.submit_likert`. Stored as string-keyed integers, e.g.
+   `%{"zufriedenheit" => 5}`, mirroring `transcript`. Surfaced in the dev harness
+   `StudyWritingLive` (`/dev/study/run/:run_id`): the questionnaire appears once the run has
+   auto-completed (`completed_at` set), submits, then shows the saved answers read-only.
 6. **Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
    modifies the haiku; ask Likert again.
 7. **End screen** — show `session_id` (UUID) for return to the originating tool; mark

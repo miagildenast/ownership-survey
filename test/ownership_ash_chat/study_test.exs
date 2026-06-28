@@ -191,6 +191,41 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "submit_likert/2" do
+    test "stores a complete, valid answer map" do
+      run = generate(run())
+
+      updated =
+        Study.submit_likert!(run, %{likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}})
+
+      assert updated.likert == %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+    end
+
+    test "rejects an incomplete answer map" do
+      run = generate(run())
+
+      assert {:error, _} = Study.submit_likert(run, %{likert: %{"zufriedenheit" => 5}})
+    end
+
+    test "rejects a value outside the scale" do
+      run = generate(run())
+
+      assert {:error, _} =
+               Study.submit_likert(run, %{
+                 likert: %{"zufriedenheit" => 6, "freude" => 4, "fluss" => 3}
+               })
+    end
+
+    test "rejects an unknown item key" do
+      run = generate(run())
+
+      assert {:error, _} =
+               Study.submit_likert(run, %{
+                 likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3, "extra" => 2}
+               })
+    end
+  end
+
   describe "generators" do
     test "build records with unique defaults" do
       s1 = generate(session())

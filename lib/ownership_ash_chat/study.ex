@@ -16,6 +16,7 @@ defmodule OwnershipAshChat.Study do
       define :get_run, action: :read, get_by: [:id]
       define :set_run_topic, action: :set_topic
       define :add_user_passage, action: :add_user_passage, args: [:text]
+      define :submit_likert, action: :submit_likert
     end
   end
 end

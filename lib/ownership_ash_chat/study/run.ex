@@ -34,6 +34,15 @@ defmodule OwnershipAshChat.Study.Run do
       change OwnershipAshChat.Study.Run.Changes.AddPassage
     end
 
+    # Store the run's Likert questionnaire answers (plan step #5). The map of
+    # answers is validated against the `Likert` definition (all items present,
+    # values within the scale). Non-atomic: the validation runs on the changeset.
+    update :submit_likert do
+      require_atomic? false
+      accept [:likert]
+      validate OwnershipAshChat.Study.Run.Validations.LikertAnswers
+    end
+
     create :create do
       accept [
         :run_index,

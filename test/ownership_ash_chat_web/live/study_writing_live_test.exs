@@ -42,4 +42,30 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     # Writing phase is closed — no more passage form.
     refute render(view) =~ "phx-submit=\"add_passage\""
   end
+
+  test "the questionnaire appears after completion and persists the answers", %{conn: conn} do
+    run = generate(run(ai_mode: :without_ai))
+
+    {:ok, view, _html} = live(conn, ~p"/dev/study/run/#{run.id}")
+
+    # Complete the writing phase so the questionnaire is shown.
+    for line <- ["alter Teich", "Frosch springt hinein", "Wasserklang"] do
+      view
+      |> form("form[phx-submit=add_passage]", %{"text" => line})
+      |> render_submit()
+    end
+
+    assert render(view) =~ "Fragebogen"
+
+    view
+    |> form("#likert-form", %{
+      "likert" => %{"zufriedenheit" => "5", "freude" => "4", "fluss" => "3"}
+    })
+    |> render_submit()
+
+    assert render(view) =~ "Fragebogen gespeichert"
+
+    reloaded = Study.get_run!(run.id)
+    assert reloaded.likert == %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+  end
 end
