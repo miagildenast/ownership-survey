@@ -1,0 +1,21 @@
+[program:ownership_ash_chat]
+command=/bin/bash ./server
+directory=/home/USER/ownership_ash_chat/_build/prod/rel/ownership_ash_chat/bin
+environment=
+    MIX_ENV="prod",
+    PORT=4001,
+    PHX_HOST=USER.uber.space,
+    DATABASE_URL="ecto://USER:PASS@127.0.0.1/ownership_ash_chat_prod",
+    POOL_SIZE=10,
+    SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
+    TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",
+    ANTHROPIC_API_KEY="!! your Anthropic API key !!",
+    LLM_MODEL="anthropic:claude-sonnet-4-5"
+    # once on sqlite, swap DATABASE_URL above for DATABASE_PATH, e.g.
+    # DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
+    # and use uberspace's system sqlite:
+    # EXQLITE_USE_SYSTEM="1",
+    # EXQLITE_SYSTEM_CFLAGS="-I/usr/include",
+    # EXQLITE_SYSTEM_LDFLAGS="-L/lib64/sqlite -lsqlite3"
+autostart=yes
+autorestart=yes

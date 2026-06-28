@@ -6,3 +6,7 @@ export ANTHROPIC_AUTH_TOKEN="your-token-here"
 
 # Optional overrides:
 # export LLM_MODEL="claude-sonnet-4-5"
+
+# Uberspace deployment (used by bin/deploy.sh):
+# export UBERSPACE_USER="fschoenf"
+# export UBERSPACE_SERVER="fschoenf.uber.space"

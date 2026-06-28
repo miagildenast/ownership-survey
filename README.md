@@ -11,7 +11,8 @@ one-click dev route starts a randomized session locally.
 - `mix phx.server` (or `iex -S mix phx.server`) — start the server
 - Visit [`localhost:4000`](http://localhost:4000)
 
-For the production stack, see the [Phoenix deployment guides](https://phoenix.hexdocs.pm/deployment.html).
+For the production stack, see the [Phoenix deployment guides](https://phoenix.hexdocs.pm/deployment.html)
+and [Production](#production) below.
 
 ## LLM backend
 
@@ -64,6 +65,50 @@ r = hd(OwnershipAshChat.Study.get_session!(s.id, load: [:runs]).runs)
 ```
 
 Other dev tooling: LiveDashboard at `/dev/dashboard`, mailbox preview at `/dev/mailbox`.
+
+## Production
+
+### Hosting on [Uberspace](https://uberspace.de)
+
+Deployment is rsync + build-on-server: the project is synced to the Uberspace
+account, deps/assets are built there, a release is cut, migrations run, and the
+app is (re)started under [supervisord](https://manual.uberspace.de/daemons-supervisord/).
+
+**One-time setup**
+
+1. Copy `.envrc.private.example` → `.envrc.private` and set `UBERSPACE_USER` /
+   `UBERSPACE_SERVER` (then `direnv allow`).
+2. Copy `bin/ownership_ash_chat.ini.example` → `bin/ownership_ash_chat.ini` and fill in
+   `USER`, `PHX_HOST`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, and the two secrets
+   (`mix phx.gen.secret` for `SECRET_KEY_BASE` and `TOKEN_SIGNING_SECRET`). This file is
+   gitignored and synced to `~/etc/services.d/` by the deploy script.
+3. On the server, copy `bin/ownership_ash_chat.env.example` → `~/ownership_ash_chat/.env.prod`
+   with the same `DATABASE_URL` / `SECRET_KEY_BASE` / `TOKEN_SIGNING_SECRET` — these are
+   sourced for the migration step (`config/runtime.exs` requires them in `:prod`).
+
+**Deploy**
+
+```bash
+./bin/deploy.sh
+```
+
+This runs, over SSH: `bin/install.sh` (deps + assets), `bin/release.sh` (`mix release`
+then run migrations via the release's `bin/migrate`), and `bin/restart_service.sh`
+(`supervisorctl` reread/update/restart).
+
+After the first deploy, [open a web backend on Uberspace](https://manual.uberspace.de/web-backends/#specific-path)
+pointing at the `PORT` from `ownership_ash_chat.ini` (default `4001`).
+
+> **Database:** this branch ships the deploy tooling; `DATABASE_URL` points at the prod
+> database. Provision/point it at whatever data layer prod uses.
+
+### Building a release
+
+`mix release` produces `_build/prod/rel/ownership_ash_chat`, with `bin/server` (starts
+the app with `PHX_SERVER=true`) and `bin/migrate` (runs `OwnershipAshChat.Release.migrate`)
+from `rel/overlays/bin/`. If you build the release on a different machine than the target,
+the build host must match the server's OS/architecture (see the
+[Phoenix releases guide](https://hexdocs.pm/phoenix/releases.html)).
 
 ## Learn more
 
