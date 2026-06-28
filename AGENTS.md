@@ -44,6 +44,174 @@ custom classes must fully style the input
 - Focus on **delightful details** like hover effects, loading states, and smooth page transitions
 
 
+# Project Description: Haiku Study
+
+> This file describes the conceptual idea behind the project so it can serve as a
+> reference for implementation and decisions later. It is intentionally kept high-level;
+> open questions are collected at the end.
+
+## Overview
+
+The project is a tool for a **research study** in which participants (subjects)
+**write haikus**. It investigates the effect of two factors on the writing experience and
+the result:
+
+1. **Topic prompt** – with a given topic vs. without a topic (free choice)
+2. **AI assistance** – with AI (ping-pong mode) vs. without AI (writing alone)
+
+After each run, participants rate their experience/result on a **Likert scale**
+(questionnaire).
+
+## Study Design
+
+### Two crossed factors
+
+The study has two crossed binary factors → **4 writing runs** per participant, plus a
+fifth modification run.
+
+- **`topic_source`** (the "condition") — `:assigned` (a topic is given) | `:free` (the
+  participant chooses the topic)
+- **`ai_mode`** (with/without AI) — `:with_ai` (ping-pong with chatbot) | `:without_ai`
+  (participant writes alone)
+
+### Nested randomization (block structure)
+
+`topic_source` is the **outer block**, `ai_mode` is the **inner factor**. Both `ai_mode`
+values of one `topic_source` are completed back-to-back before switching `topic_source`:
+
+1. The two **`topic_source`** values (`:assigned`, `:free`) are assigned in **random
+   order**.
+2. On entering a `topic_source`, one of the two **`ai_mode`** values (`:with_ai`,
+   `:without_ai`) is chosen **at random**.
+3. When that run completes, the **other `ai_mode`** of the **same `topic_source`** is run.
+4. **Only then** the participant moves to the **next `topic_source`** (again random
+   `ai_mode` order within).
+
+This yields 4 runs whose presented order is one of 8 valid sequences (2 `topic_source`
+orders × 2 `ai_mode` orders per `topic_source`).
+
+Each run ends with a **Likert survey**.
+
+### Ping-pong mode (with AI)
+
+Alternating writing: one passage from the user, one passage from the AI, one passage from
+the user, and so on. A haiku is created jointly, turn by turn.
+
+### Fifth run (modification)
+
+An additional, **fifth run** builds on the results:
+
+1. The **"best" run** of the four previous ones is taken as the starting point.
+   - **Determination**: highest **average** across the run's Likert items.
+   - All Likert questions are **positively coded** (higher = better), so they can be
+     averaged directly without reverse-scoring.
+   - Tie-break on equal scores: still to be decided (see Open Questions).
+2. The chatbot modifies the haiku. There are **three variants**, and which one a
+   participant gets is **chosen at random**:
+   - **5a** – only **one word** in the whole haiku is changed
+   - **5b** – **one line** is changed
+   - **5c** – **two lines** are changed
+3. Afterwards the **Likert scale is asked again** (rating of the modified version).
+
+## Access & Identification
+
+- **No classic login** (no username/password).
+- Participants enter the application via a link with a token:
+  ```
+  /start?token=%caseToken%
+  ```
+  The `%caseToken%` placeholder is filled by the **upstream study tool** (e.g. a
+  survey/panel software). The token identifies the case.
+- The **caseId** is derived from / mapped to the token.
+
+### Return to the originating tool
+
+- At the end of the **last run**, a **UUID** is displayed.
+- The participant takes this UUID back into the originating tool so the datasets can be
+  **matched later** (mapping between our dataset and the external tool).
+
+## Participant flow (high level)
+
+1. Entry via `/start?token=…`.
+2. Four runs in nested-block order (both `ai_mode` values of one `topic_source`, then the
+   next `topic_source` — see Study Design):
+   - optional topic display / topic choice (depending on `topic_source`),
+   - writing phase (alone or ping-pong with chatbot, depending on `ai_mode`),
+   - Likert survey.
+3. Fifth run: modification on the best haiku (random variant 5a/5b/5c) + Likert.
+4. Display of the **UUID** (run/session ID) to return to the originating tool.
+
+## Data model
+
+Persisted **relationally via AshPostgres** (the app already uses Postgres + AshPostgres):
+a **`session`** resource `has_many` **`run`** resources. JSON is **not** the storage format
+— it is only an **export artifact**, generated on demand from a read action (load `session`
+with its `runs` and serialize, e.g. via `Jason`). Field names below are the proposed domain
+attribute names (snake_case); exported JSON keys mirror them.
+
+### `session` (one per participant / `case_token`)
+
+- `case_id` – derived from the entry token; mapping to the external tool
+- `session_id` (UUID) – the id shown at the end for later matching
+- `topic_source_order` – randomized order of the two `topic_source` blocks, e.g.
+  `[:free, :assigned]`
+- `runs` – the run records (4 writing + 1 modification)
+- `status` – `:in_progress | :completed | :aborted`
+- `started_at` / `completed_at`
+- `metadata` – tool/app version, LLM model used
+
+### `run` (one writing+survey unit = one cell)
+
+- `run_index` – presented order, `1..4` (modification run separate, see below)
+- `kind` – `:writing | :modification`
+- `topic_source` – `:assigned | :free`
+- `ai_mode` – `:with_ai | :without_ai`
+- `topic` – the actual topic text (the assigned one, or the participant's chosen one)
+- `transcript` – the messages (user + AI), in order
+- `final_haiku` – the finished haiku (separate from the transcript, for easy analysis)
+- `likert` – questionnaire answers (all items positively coded)
+- `started_at` / `completed_at`
+
+### Modification run (the fifth, `kind: :modification`)
+
+- `variant` – `:a` (one word) | `:b` (one line) | `:c` (two lines), assigned at random
+- `source_run_index` – which writing run was the "best" (highest Likert average) and used
+  as the basis
+- `original_haiku` / `modified_haiku` – before/after the chatbot's change
+- `likert` – questionnaire answers on the modified version
+
+## Technical context (current state)
+
+- Phoenix/Ash application with an existing chat (LiveView, generated via `ash_ai.gen.chat`).
+- The LLM is config-driven (`OwnershipAshChat.LLM`): prod via Anthropic/Claude, local via
+  LM Studio. See `config/runtime.exs`.
+- The existing chat flow (`Chat.Message.Changes.Respond`, `Chat.Conversation`) is the base,
+  but must be adapted for the study setup (phases, conditions, ping-pong logic,
+  questionnaires, token entry instead of auth).
+
+## Open questions (to clarify before implementation)
+
+1. **"Best" run for run 5**: highest Likert average, all items positively coded (clarified).
+   Open only: **tie-break** on equal scores (e.g. random, or a preferred
+   `topic_source`/`ai_mode`).
+2. **Modification variant distribution**: are `:a/:b/:c` drawn uniformly at random, or
+   balanced (e.g. against the best run's `topic_source`/`ai_mode`)?
+3. **Topic prompt**: Fixed topic pool, drawn at random, or configured per study?
+4. **Ping-pong**: Fixed number of rounds? Who starts (user or AI)? When does a run end?
+5. **Likert questionnaire**: Which concrete items, which scale (e.g. 5- or 7-point)? Same
+   items across all five runs?
+6. **Token security**: How is `caseToken` validated (signature, expiry, single use)? What
+   happens on an invalid/missing token?
+7. **Persistence**: resolved — store relationally via AshPostgres (`session` `has_many`
+   `run`); JSON is only an on-demand export artifact from a read action, not the storage
+   format. Open only: export trigger/format details (single session vs. bulk, file vs.
+   download endpoint).
+8. **Re-entry**: May a participant resume an interrupted session (same token)? Or strictly
+   single use?
+9. **UI/chatbot language**: German? English? (Haiku instructions and system prompt
+   accordingly.)
+
+
 <!-- usage-rules-start -->
 
 <!-- phoenix:elixir-start -->

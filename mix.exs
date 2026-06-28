@@ -20,8 +20,9 @@ defmodule OwnershipAshChat.MixProject do
   defp usage_rules do
     # Example for those using claude.
     [
-      file: "CLAUDE.md",
-      # rules to include directly in CLAUDE.md
+      # AGENTS.md is the single source of truth; CLAUDE.md is a symlink to it.
+      file: "AGENTS.md",
+      # rules to include directly in AGENTS.md
       usage_rules: ["usage_rules:all", :req_llm],
       skills: [
         location: ".claude/skills",
