@@ -40,10 +40,20 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
       |> render_submit()
     end
 
-    # Run complete: the assembled haiku and the Weiter button are shown.
+    # Writing done: the assembled haiku and the questionnaire are shown, but not Weiter yet.
     rendered = render(view)
     assert rendered =~ "alter Teich\nFrosch springt hinein\nWasserklang"
-    assert rendered =~ "Weiter"
+    assert rendered =~ "Fragebogen"
+    refute rendered =~ "Weiter"
+
+    # Answer the Likert questionnaire → the Weiter button appears.
+    view
+    |> form("#likert-form", %{
+      "likert" => %{"zufriedenheit" => "5", "freude" => "4", "fluss" => "3"}
+    })
+    |> render_submit()
+
+    assert render(view) =~ "Weiter"
 
     # Advance to run 2.
     view |> element("button", "Weiter") |> render_click()
@@ -54,10 +64,15 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     session = generate(session())
     run = generate(run(session_id: session.id, run_index: 1, ai_mode: :without_ai))
 
-    # Pre-complete the only run.
-    Enum.reduce(["eins", "zwei", "drei"], run, fn line, run ->
-      Study.add_user_passage!(run, line)
-    end)
+    # Pre-complete the only run: write its lines, then answer the questionnaire.
+    completed =
+      Enum.reduce(["eins", "zwei", "drei"], run, fn line, run ->
+        Study.add_user_passage!(run, line)
+      end)
+
+    Study.submit_likert!(completed, %{
+      likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+    })
 
     conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
 

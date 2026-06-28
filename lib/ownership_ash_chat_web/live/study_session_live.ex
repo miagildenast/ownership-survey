@@ -5,10 +5,10 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   `Study.Session` with its randomized writing runs, and walks the participant through
   them one at a time.
 
-  When the current run's haiku is complete a **Weiter** button advances to the next
-  unfinished writing run; once all four are done it shows the (placeholder) end card.
-  Likert/questionnaire (step #5) and the modification run (#6) / full end screen (#7)
-  are out of scope here.
+  When the current run's haiku is complete the per-run Likert questionnaire (step #5) is
+  shown; only after it is submitted does a **Weiter** button advance to the next
+  unfinished writing run. Once all four are done it shows the (placeholder) end card.
+  The modification run (#6) / full end screen (#7) are out of scope here.
   """
   use OwnershipAshChatWeb, :live_view
 
@@ -44,9 +44,15 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   end
 
   def handle_event("add_passage", %{"text" => text}, socket) do
-    # Keep the active run pinned after it completes (so the haiku + Weiter button show);
+    # Keep the active run pinned after it completes (so the haiku + questionnaire show);
     # advancing to the next run only happens on the explicit "next_run" click.
     run = Study.add_user_passage!(socket.assigns.run, text)
+    {:noreply, assign_run(socket, run)}
+  end
+
+  def handle_event("submit_likert", %{"likert" => answers}, socket) do
+    likert = Map.new(answers, fn {key, value} -> {key, String.to_integer(value)} end)
+    run = Study.submit_likert!(socket.assigns.run, %{likert: likert})
     {:noreply, assign_run(socket, run)}
   end
 
@@ -69,11 +75,15 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   end
 
   # First unfinished writing run in presented order; nil once all are complete.
+  # A run counts as finished only after its haiku is complete *and* its questionnaire
+  # is answered, so a reload mid-questionnaire returns to the same run.
   defp next_unfinished_run(study) do
     study
     |> writing_runs()
-    |> Enum.find(&is_nil(&1.completed_at))
+    |> Enum.find(&run_unfinished?/1)
   end
+
+  defp run_unfinished?(run), do: is_nil(run.completed_at) or not likert_submitted?(run)
 
   defp writing_runs(study) do
     (study.runs || [])
@@ -82,7 +92,14 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   end
 
   defp step(nil), do: :all_done
-  defp step(run), do: if(run.completed_at, do: :run_complete, else: :writing)
+
+  defp step(run) do
+    cond do
+      is_nil(run.completed_at) -> :writing
+      not likert_submitted?(run) -> :likert
+      true -> :run_complete
+    end
+  end
 
   defp can_add_passage?(run), do: is_nil(run.completed_at) and not lines_done?(run)
 
@@ -110,6 +127,8 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
           </header>
 
           <.run_panel run={@run} can_add_passage?={@can_add_passage?} lines_done?={@lines_done?} />
+
+          <.likert_panel :if={@step in [:likert, :run_complete]} run={@run} />
 
           <div :if={@step == :run_complete} class="flex justify-end">
             <.button phx-click="next_run">Weiter</.button>
