@@ -1,8 +1,8 @@
 # Copy to .envrc.private and fill in real values. Never commit .envrc.private.
-# Dev LLM endpoint.
 
-export ANTHROPIC_BASE_URL=""
-export ANTHROPIC_AUTH_TOKEN="your-token-here"
+# export ANTHROPIC_BASE_URL=""
+# export ANTHROPIC_AUTH_TOKEN="your-token-here"
+# export OPENROUTER_API_KEY=""
 
 # Optional overrides:
 # export LLM_MODEL="claude-sonnet-4-5"
@@ -10,3 +10,4 @@ export ANTHROPIC_AUTH_TOKEN="your-token-here"
 # Uberspace deployment (used by bin/deploy.sh):
 # export UBERSPACE_USER="fschoenf"
 # export UBERSPACE_SERVER="fschoenf.uber.space"
+

@@ -2,12 +2,18 @@ import Config
 
 llm_config =
   if config_env() == :prod do
+    # prod (Uberspace): OpenRouter via OpenAI-kompatiblen Endpoint.
     [
-      model: System.get_env("LLM_MODEL", "anthropic:claude-sonnet-4-5"),
+      model: %{
+        provider: :openai,
+        id: System.get_env("LLM_MODEL", "openai/gpt-oss-120b:free"),
+        base_url: System.get_env("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+      },
       req_llm_opts: [
         api_key:
-          System.get_env("ANTHROPIC_API_KEY") ||
-            raise("Missing environment variable ANTHROPIC_API_KEY")
+          System.get_env("OPENROUTER_API_KEY") ||
+            raise("Missing environment variable OPENROUTER_API_KEY"),
+        provider_options: [reasoning: %{enabled: true}]
       ]
     ]
   else

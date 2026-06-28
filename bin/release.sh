@@ -11,13 +11,25 @@ export MIX_ENV="prod"
 mix release --overwrite
 
 ## load prod secrets/env for the migrate step.
-## runtime.exs requires DATABASE_URL, SECRET_KEY_BASE and TOKEN_SIGNING_SECRET
-## in :prod for *every* release command (including `eval`), so we source them
-## here. Copy bin/ownership_ash_chat.env.example to .env.prod on the server.
-if [ -f .env.prod ]; then
+## runtime.exs requires DATABASE_URL, SECRET_KEY_BASE, TOKEN_SIGNING_SECRET and
+## OPENROUTER_API_KEY in :prod for *every* release command (including `eval`).
+## Single source of truth is the supervisord ini: we parse its `environment=`
+## block (indented KEY="val", lines, comments and trailing commas stripped) so
+## there is no separate .env file to keep in sync.
+ini="bin/ownership_ash_chat.ini"
+if [ -f "$ini" ]; then
   set -a
-  # shellcheck disable=SC1091
-  . ./.env.prod
+  # shellcheck disable=SC1090
+  . <(awk '
+    /^environment=/ { inblock = 1; next }
+    inblock && /^[^[:space:]]/ { inblock = 0 }
+    inblock {
+      sub(/#.*/, "")
+      gsub(/^[[:space:]]+/, "")
+      sub(/,[[:space:]]*$/, "")
+      if (length($0)) print
+    }
+  ' "$ini")
   set +a
 fi
 

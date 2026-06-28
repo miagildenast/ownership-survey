@@ -39,8 +39,7 @@ npm-debug.log
 .envrc.private
 /.direnv/
 
-# Uberspace deploy: server-side prod secrets and the rendered supervisord ini
-# (keep the *.example templates tracked).
-.env.prod
+# Uberspace deploy: the rendered supervisord ini holds prod secrets
+# (keep the *.example template tracked).
 /bin/ownership_ash_chat.ini
 

@@ -18,14 +18,15 @@ and [Production](#production) below.
 
 The chatbot is config-driven (`OwnershipAshChat.LLM`):
 
-- **prod** — Anthropic / Claude (`ANTHROPIC_API_KEY` required)
+- **prod** — OpenRouter via OpenAI-compatible endpoint (`OPENROUTER_API_KEY`
+  required), default model `openai/gpt-oss-120b:free`
 - **dev/test** — a local OpenAI-compatible endpoint, by default
   [LM Studio](https://lmstudio.ai/) on `http://localhost:1234/v1`
 
 `:with_ai` (ping-pong) runs call the model, so they need a backend running.
 `:without_ai` (solo writing) runs need **no** LLM.
 
-Tunable via `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY` / `ANTHROPIC_API_KEY`
+Tunable via `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY` / `OPENROUTER_API_KEY`
 (see `config/runtime.exs`).
 
 ## Local debug session
@@ -79,12 +80,11 @@ app is (re)started under [supervisord](https://manual.uberspace.de/daemons-super
 1. Copy `.envrc.private.example` → `.envrc.private` and set `UBERSPACE_USER` /
    `UBERSPACE_SERVER` (then `direnv allow`).
 2. Copy `bin/ownership_ash_chat.ini.example` → `bin/ownership_ash_chat.ini` and fill in
-   `USER`, `PHX_HOST`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, and the two secrets
+   `USER`, `PHX_HOST`, `DATABASE_URL`, `OPENROUTER_API_KEY`, and the two secrets
    (`mix phx.gen.secret` for `SECRET_KEY_BASE` and `TOKEN_SIGNING_SECRET`). This file is
-   gitignored and synced to `~/etc/services.d/` by the deploy script.
-3. On the server, copy `bin/ownership_ash_chat.env.example` → `~/ownership_ash_chat/.env.prod`
-   with the same `DATABASE_URL` / `SECRET_KEY_BASE` / `TOKEN_SIGNING_SECRET` — these are
-   sourced for the migration step (`config/runtime.exs` requires them in `:prod`).
+   gitignored and synced to `~/etc/services.d/` by the deploy script. It is the **single
+   source of truth** for prod env: `bin/release.sh` parses its `environment=` block for
+   the migration step, so there is no separate `.env` file.
 
 **Deploy**
 

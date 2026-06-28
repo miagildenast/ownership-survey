@@ -9,8 +9,9 @@ environment=
     POOL_SIZE=10,
     SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
     TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",
-    ANTHROPIC_API_KEY="!! your Anthropic API key !!",
-    LLM_MODEL="anthropic:claude-sonnet-4-5"
+    OPENROUTER_API_KEY="!! your OpenRouter API key !!",
+    LLM_MODEL="openai/gpt-oss-120b:free",
+    LLM_BASE_URL="https://openrouter.ai/api/v1"
     # once on sqlite, swap DATABASE_URL above for DATABASE_PATH, e.g.
     # DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
     # and use uberspace's system sqlite:
