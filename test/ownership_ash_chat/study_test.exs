@@ -106,6 +106,67 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "set_run_topic/2" do
+    test "sets the topic and stamps started_at" do
+      run = generate(run(topic_source: :free))
+      assert is_nil(run.started_at)
+
+      updated = Study.set_run_topic!(run, %{topic: "Herbst"})
+
+      assert updated.topic == "Herbst"
+      refute is_nil(updated.started_at)
+    end
+  end
+
+  describe "add_user_passage/2" do
+    test "without_ai appends only the user passage" do
+      run = generate(run(ai_mode: :without_ai))
+
+      updated = Study.add_user_passage!(run, "Stille am Teich")
+
+      assert [%{"role" => "user", "text" => "Stille am Teich"}] = updated.transcript
+    end
+
+    test "with_ai appends the user passage and the AI reply" do
+      run = generate(run(ai_mode: :with_ai))
+
+      updated = Study.add_user_passage!(run, "Stille am Teich")
+
+      assert [
+               %{"role" => "user", "text" => "Stille am Teich"},
+               %{"role" => "ai", "text" => ai_text}
+             ] = updated.transcript
+
+      assert ai_text == OwnershipAshChat.Study.PingPongStub.text()
+    end
+
+    test "with_ai stops generating AI replies past the round limit" do
+      rounds = OwnershipAshChat.Study.PingPong.rounds()
+
+      run =
+        Enum.reduce(1..(rounds + 1), generate(run(ai_mode: :with_ai)), fn i, run ->
+          Study.add_user_passage!(run, "Zeile #{i}")
+        end)
+
+      user_count = Enum.count(run.transcript, &(&1["role"] == "user"))
+      ai_count = Enum.count(run.transcript, &(&1["role"] == "ai"))
+
+      assert user_count == rounds + 1
+      assert ai_count == rounds
+    end
+  end
+
+  describe "set_final_haiku/2" do
+    test "sets the final haiku and stamps completed_at" do
+      run = generate(run())
+
+      updated = Study.set_final_haiku!(run, %{final_haiku: "alter Teich\nFrosch springt hinein\nWasserklang"})
+
+      assert updated.final_haiku =~ "Wasserklang"
+      refute is_nil(updated.completed_at)
+    end
+  end
+
   describe "generators" do
     test "build records with unique defaults" do
       s1 = generate(session())

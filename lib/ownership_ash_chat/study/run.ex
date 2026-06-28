@@ -18,6 +18,28 @@ defmodule OwnershipAshChat.Study.Run do
   actions do
     defaults [:read, :destroy]
 
+    # Set/seed the run's topic (participant's choice for :free, the assigned one for
+    # :assigned) and stamp the run as started.
+    update :set_topic do
+      accept [:topic]
+      change set_attribute(:started_at, &DateTime.utc_now/0)
+    end
+
+    # Append one user passage. For :with_ai runs still within the round limit, the
+    # AI's reply is generated and appended too (ping-pong). Non-atomic: reads the
+    # current transcript and may call the LLM.
+    update :add_user_passage do
+      require_atomic? false
+      argument :text, :string, allow_nil?: false
+      change OwnershipAshChat.Study.Run.Changes.AddPassage
+    end
+
+    # Capture the finished haiku and mark the run complete.
+    update :set_final_haiku do
+      accept [:final_haiku]
+      change set_attribute(:completed_at, &DateTime.utc_now/0)
+    end
+
     create :create do
       accept [
         :run_index,

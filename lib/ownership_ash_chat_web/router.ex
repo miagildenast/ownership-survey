@@ -107,5 +107,13 @@ defmodule OwnershipAshChatWeb.Router do
       live_dashboard "/dashboard", metrics: OwnershipAshChatWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+
+    # Dev-only harness for the study writing flow (plan step #4), operating on a
+    # single run by id — not the participant entry point.
+    scope "/dev", OwnershipAshChatWeb do
+      pipe_through :browser
+
+      live "/study/run/:run_id", StudyWritingLive
+    end
   end
 end

@@ -1,5 +1,13 @@
 import Config
 config :ownership_ash_chat, Oban, testing: :manual
+
+# Enable the dev-only study writing harness route so it can be tested.
+config :ownership_ash_chat, dev_routes: true
+
+# Fast, deterministic ping-pong: stub the AI responder and shrink the round count.
+config :ownership_ash_chat,
+  ping_pong_rounds: 3,
+  study_responder: {OwnershipAshChat.Study.PingPongStub, :reply}
 config :ownership_ash_chat, token_signing_secret: "tL/50GAJQmrIXonsmfdR73Xx6ghU06fn"
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true

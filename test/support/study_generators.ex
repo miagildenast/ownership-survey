@@ -31,6 +31,10 @@ defmodule OwnershipAshChat.StudyGenerators do
         kind: :writing,
         topic_source: :free,
         ai_mode: :with_ai,
+        # Pin otherwise-accepted attributes so the generator doesn't fill them with
+        # random data (e.g. a stray `[%{}]` transcript), keeping runs deterministic.
+        transcript: [],
+        final_haiku: nil,
         session_id: session_id
       ],
       overrides: opts
