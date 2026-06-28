@@ -22,7 +22,7 @@ defmodule OwnershipAshChat.MixProject do
     [
       file: "CLAUDE.md",
       # rules to include directly in CLAUDE.md
-      usage_rules: ["usage_rules:all"],
+      usage_rules: ["usage_rules:all", :req_llm],
       skills: [
         location: ".claude/skills",
         # build skills that combine multiple usage rules
@@ -104,6 +104,8 @@ defmodule OwnershipAshChat.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
+      # for usage_rules
+      {:req_llm, "~> 1.7"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
