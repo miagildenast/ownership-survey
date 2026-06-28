@@ -13,17 +13,11 @@ defmodule OwnershipAshChat.Application do
       OwnershipAshChat.Repo,
       {DNSCluster,
        query: Application.get_env(:ownership_ash_chat, :dns_cluster_query) || :ignore},
-      {Oban,
-       AshOban.config(
-         Application.fetch_env!(:ownership_ash_chat, :ash_domains),
-         Application.fetch_env!(:ownership_ash_chat, Oban)
-       )},
       {Phoenix.PubSub, name: OwnershipAshChat.PubSub},
       # Start a worker by calling: OwnershipAshChat.Worker.start_link(arg)
       # {OwnershipAshChat.Worker, arg},
       # Start to serve requests, typically the last entry
-      OwnershipAshChatWeb.Endpoint,
-      {AshAuthentication.Supervisor, [otp_app: :ownership_ash_chat]}
+      OwnershipAshChatWeb.Endpoint
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

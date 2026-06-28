@@ -43,3 +43,8 @@ npm-debug.log
 # (keep the *.example template tracked).
 /bin/ownership_ash_chat.ini
 
+# SQLite database files (dev/test) and WAL/SHM sidecars.
+*.db
+*.db-shm
+*.db-wal
+

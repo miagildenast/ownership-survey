@@ -43,9 +43,9 @@ defmodule OwnershipAshChat.DataCase do
   @doc """
   A helper that transforms changeset errors into a map of messages.
 
-      assert {:error, changeset} = Accounts.create_user(%{password: "short"})
-      assert "password is too short" in errors_on(changeset).password
-      assert %{password: ["password is too short"]} = errors_on(changeset)
+      assert {:error, changeset} = SomeDomain.create_thing(%{field: "bad"})
+      assert "field is invalid" in errors_on(changeset).field
+      assert %{field: ["field is invalid"]} = errors_on(changeset)
 
   """
   def errors_on(changeset) do

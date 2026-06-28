@@ -73,22 +73,16 @@ config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
-  database_url =
-    System.get_env("DATABASE_URL") ||
+  database_path =
+    System.get_env("DATABASE_PATH") ||
       raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
+      environment variable DATABASE_PATH is missing.
+      For example: /data/ownership_ash_chat.db
       """
 
-  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
-
   config :ownership_ash_chat, OwnershipAshChat.Repo,
-    # ssl: true,
-    url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
-    socket_options: maybe_ipv6
+    database: database_path,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -116,11 +110,6 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base
-
-  config :ownership_ash_chat,
-    token_signing_secret:
-      System.get_env("TOKEN_SIGNING_SECRET") ||
-        raise("Missing environment variable `TOKEN_SIGNING_SECRET`!")
 
   # ## SSL Support
   #

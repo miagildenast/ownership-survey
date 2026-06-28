@@ -2,11 +2,11 @@ defmodule OwnershipAshChat.Study.Run do
   use Ash.Resource,
     otp_app: :ownership_ash_chat,
     domain: OwnershipAshChat.Study,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshSqlite.DataLayer
 
   alias OwnershipAshChat.Study.Types
 
-  postgres do
+  sqlite do
     table "study_runs"
     repo OwnershipAshChat.Repo
 

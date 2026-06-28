@@ -3,13 +3,12 @@ config :ash, policies: [show_policy_breakdowns?: true]
 
 # Configure your database
 config :ownership_ash_chat, OwnershipAshChat.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "ownership_ash_chat_dev",
+  database: Path.expand("../ownership_ash_chat_dev.db", __DIR__),
+  pool_size: 5,
+  busy_timeout: 5000,
+  journal_mode: :wal,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  show_sensitive_data_on_connection_error: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -69,9 +68,7 @@ config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :ownership_ash_chat,
-  dev_routes: true,
-  token_signing_secret: "G+diWtQ6W8sHs1mnV4qqFQQ2+25ZAaBR"
+config :ownership_ash_chat, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

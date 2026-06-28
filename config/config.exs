@@ -8,14 +8,6 @@
 import Config
 
 config :mdex_native, syntax_highlighter: :lumis
-config :ash_oban, pro?: false
-
-config :ownership_ash_chat, Oban,
-  engine: Oban.Engines.Basic,
-  notifier: Oban.Notifiers.Postgres,
-  queues: [default: 10, chat_responses: [limit: 10], conversations: [limit: 10]],
-  repo: OwnershipAshChat.Repo,
-  plugins: [{Oban.Plugins.Cron, []}]
 
 # These enable behaviors that will become the default in the next major
 # version of Ash. Setting them now opts your application into the new
@@ -33,18 +25,14 @@ config :ash,
   read_action_after_action_hooks_in_order?: true,
   bulk_actions_default_to_errors?: true,
   transaction_rollback_on_error?: true,
-  redact_sensitive_values_in_errors?: true,
-  known_types: [AshPostgres.Timestamptz, AshPostgres.TimestamptzUsec]
+  redact_sensitive_values_in_errors?: true
 
 config :spark,
   formatter: [
     remove_parens?: true,
     "Ash.Resource": [
       section_order: [
-        :authentication,
-        :token,
-        :user_identity,
-        :postgres,
+        :sqlite,
         :resource,
         :code_interface,
         :actions,
@@ -67,7 +55,7 @@ config :spark,
 config :ownership_ash_chat,
   ecto_repos: [OwnershipAshChat.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [OwnershipAshChat.Study, OwnershipAshChat.Chat, OwnershipAshChat.Accounts]
+  ash_domains: [OwnershipAshChat.Study]
 
 # Configure the endpoint
 config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,

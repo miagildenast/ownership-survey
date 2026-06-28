@@ -1,5 +1,4 @@
 import Config
-config :ownership_ash_chat, Oban, testing: :manual
 
 # Enable the dev-only study writing harness route so it can be tested.
 config :ownership_ash_chat, dev_routes: true
@@ -9,8 +8,6 @@ config :ownership_ash_chat,
   ping_pong_lines: 3,
   study_responder: {OwnershipAshChat.Study.PingPongStub, :reply}
 
-config :ownership_ash_chat, token_signing_secret: "tL/50GAJQmrIXonsmfdR73Xx6ghU06fn"
-config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Configure your database
@@ -19,12 +16,14 @@ config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :ownership_ash_chat, OwnershipAshChat.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "ownership_ash_chat_test#{System.get_env("MIX_TEST_PARTITION")}",
+  database:
+    Path.expand("../ownership_ash_chat_test#{System.get_env("MIX_TEST_PARTITION")}.db", __DIR__),
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: 5,
+  # SQLite is single-writer; give concurrent connections time to acquire the
+  # write lock instead of failing immediately ("database is locked").
+  busy_timeout: 5000,
+  journal_mode: :wal
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

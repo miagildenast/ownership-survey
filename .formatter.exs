@@ -1,12 +1,7 @@
 [
   import_deps: [
-    :ash_ai,
-    :ash_oban,
-    :oban,
-    :ash_authentication,
-    :ash_authentication_phoenix,
     :ash_phoenix,
-    :ash_postgres,
+    :ash_sqlite,
     :ash,
     :reactor,
     :ecto,

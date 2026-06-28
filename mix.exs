@@ -23,7 +23,7 @@ defmodule OwnershipAshChat.MixProject do
       # AGENTS.md is the single source of truth; CLAUDE.md is a symlink to it.
       file: "AGENTS.md",
       # rules to include directly in AGENTS.md
-      usage_rules: ["usage_rules:all", :req_llm, :ex_check_ng, :ash, :ash_postgres, :ash_ai],
+      usage_rules: ["usage_rules:all", :req_llm, :ex_check_ng, :ash, :ash_sqlite],
       skills: [
         location: ".claude/skills",
         # build skills that combine multiple usage rules
@@ -74,21 +74,16 @@ defmodule OwnershipAshChat.MixProject do
       {:usage_rules, "~> 1.0", only: [:dev]},
       {:lumis, "~> 0.1"},
       {:mdex, "~> 0.7"},
-      {:bcrypt_elixir, "~> 3.0"},
       {:picosat_elixir, "~> 0.2"},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
-      {:oban, "~> 2.0"},
-      {:ash_ai, [github: "ash-project/ash_ai", override: true]},
-      {:ash_oban, "~> 0.8"},
-      {:ash_authentication_phoenix, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
-      {:ash_postgres, "~> 2.0"},
+      {:ash_sqlite, "~> 0.2"},
       {:ash, "~> 3.0"},
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:phoenix, "~> 1.8.8"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
-      {:postgrex, ">= 0.0.0"},
+      {:ecto_sqlite3, "~> 0.17"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
