@@ -201,6 +201,25 @@ attribute names (snake_case); exported JSON keys mirror them.
 - `mix usage_rules.sync` targets `AGENTS.md` (see `mix.exs`) and only rewrites the
   `<!-- usage-rules-* -->` managed block — content above it (this description) is safe.
 
+### Guard: consult the Ash skill references BEFORE writing Ash code
+
+**Mandatory.** Before writing or editing any Ash resource, action, domain, migration,
+or **test**, you MUST first invoke the `ash-framework` skill and read the relevant
+`references/*.md` file(s) — do not work from memory. The references override your
+assumptions. Map the task to its reference and read it first:
+
+- resources/actions → `references/actions.md`, `references/code_structure.md`
+- domains & calling into resources → `references/code_interfaces.md`
+- relationships / managing related data → `references/relationships.md`
+- migrations & data layer → `references/migrations.md`, `references/ash_postgres.md`
+- **tests** → `references/testing.md` (use `Ash.Generator` + `Ash.Test`, test through
+  the code interface, prefer raising functions; see `test/support/study_generators.ex`)
+- generating code → `references/generating_code.md` (prefer `mix ash.gen.*`)
+
+When unsure which reference applies, `mix usage_rules.search_docs "<term>" -p ash ...`.
+State in your reply which reference(s) you consulted. If you skipped this and wrote Ash
+code from memory, stop and redo it against the references.
+
 ## Implementation plan (lean, in order)
 
 Build dependencies first. Critical path: 1 → 3 → 4 → 5 → 6 → 7. Step 2 can run in parallel
