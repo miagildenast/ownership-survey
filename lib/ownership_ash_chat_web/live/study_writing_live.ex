@@ -32,6 +32,7 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   defp assign_run(socket, run) do
     socket
     |> assign(:run, run)
+    |> assign(:line_count, line_count(run.transcript))
     |> assign(:lines_done?, lines_done?(run))
     |> assign(:can_add_passage?, can_add_passage?(run))
   end
@@ -103,11 +104,17 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
           <.form
             :if={@can_add_passage?}
             for={%{}}
-            id="passage-form"
+            id={"passage-form-#{@line_count}"}
             phx-submit="add_passage"
             class="space-y-2"
           >
-            <.input type="textarea" name="text" value="" label="Deine Passage" />
+            <.input
+              type="textarea"
+              name="text"
+              value=""
+              label="Deine Passage"
+              phx-mounted={JS.focus()}
+            />
             <.button>Senden</.button>
           </.form>
           <p :if={@lines_done?} class="text-sm text-base-content/60">
