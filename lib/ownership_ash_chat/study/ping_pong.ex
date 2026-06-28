@@ -19,9 +19,10 @@ defmodule OwnershipAshChat.Study.PingPong do
   alias OwnershipAshChat.LLM
   alias ReqLLM.Context
 
-  @system """
+  @task """
   Du schreibst gemeinsam mit einer Person ein Haiku – abwechselnd, Zeile für Zeile (Ping-Pong).
-  Knüpfe an das bisher Geschriebene an und antworte mit genau einer kurzen Passage
+  Lies den bisherigen Verlauf und knüpfe inhaltlich an die LETZTE Passage deines Partners an,
+  führe sie weiter (kein neuer, unabhängiger Anfang). Antworte mit genau einer kurzen Passage
   (in der Regel eine Haiku-Zeile). Gib nur die Passage zurück, ohne Erklärungen oder Anführungszeichen.
   """
 
@@ -45,13 +46,25 @@ defmodule OwnershipAshChat.Study.PingPong do
   @doc "Generate the AI's next passage from the run's transcript via the LLM."
   def generate_passage(run, _opts) do
     context =
-      Context.new([Context.system(@system) | turns(run.transcript || [])])
+      Context.new([Context.system(system(run)) | turns(run.transcript || [])])
 
     case ReqLLM.generate_text(ReqLLM.model!(LLM.model()), context, LLM.req_llm_opts()) do
       {:ok, response} -> response |> ReqLLM.Response.text() |> to_string() |> String.trim()
       {:error, _reason} -> "…"
     end
   end
+
+  # Global experiment preamble + ping-pong task + (optional) the run's topic.
+  defp system(run) do
+    [LLM.system_preamble(), @task, topic_line(run)]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join("\n")
+  end
+
+  defp topic_line(%{topic: topic}) when is_binary(topic) and topic != "",
+    do: "Thema des Haikus: #{topic}"
+
+  defp topic_line(_), do: nil
 
   defp turns(transcript) do
     Enum.map(transcript, fn passage ->
