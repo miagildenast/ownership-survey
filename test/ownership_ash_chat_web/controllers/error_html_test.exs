@@ -1,5 +1,5 @@
 defmodule OwnershipAshChatWeb.ErrorHTMLTest do
-  use OwnershipAshChatWeb.ConnCase, async: true
+  use OwnershipAshChatWeb.ConnCase, async: false
 
   # Bring render_to_string/4 for testing custom views
   import Phoenix.Template, only: [render_to_string: 4]

@@ -1,5 +1,5 @@
 defmodule OwnershipAshChatWeb.StudySessionLiveTest do
-  use OwnershipAshChatWeb.ConnCase, async: true
+  use OwnershipAshChatWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import OwnershipAshChat.StudyGenerators

@@ -1,5 +1,5 @@
 defmodule OwnershipAshChatWeb.StartControllerTest do
-  use OwnershipAshChatWeb.ConnCase, async: true
+  use OwnershipAshChatWeb.ConnCase, async: false
 
   defp case_id, do: "case-#{System.unique_integer([:positive])}"
 

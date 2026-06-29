@@ -1,5 +1,5 @@
 defmodule OwnershipAshChat.Study.ExportTest do
-  use OwnershipAshChat.DataCase, async: true
+  use OwnershipAshChat.DataCase, async: false
 
   import OwnershipAshChat.StudyGenerators
 

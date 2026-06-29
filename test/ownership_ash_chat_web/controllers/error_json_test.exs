@@ -1,5 +1,5 @@
 defmodule OwnershipAshChatWeb.ErrorJSONTest do
-  use OwnershipAshChatWeb.ConnCase, async: true
+  use OwnershipAshChatWeb.ConnCase, async: false
 
   test "renders 404" do
     assert OwnershipAshChatWeb.ErrorJSON.render("404.json", %{}) == %{
