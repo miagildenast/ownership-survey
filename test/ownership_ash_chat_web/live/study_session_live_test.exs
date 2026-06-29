@@ -23,6 +23,9 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     {conn, session}
   end
 
+  # Stub that returns the original haiku with " (modified)" appended to avoid live LLM calls.
+  def stub_modification(haiku, _variant, _opts), do: haiku <> " (modified)"
+
   test "redirects to / when no session cookie is set", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/study")
   end
@@ -60,7 +63,140 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     assert render(view) =~ "Run 2 von 2"
   end
 
-  test "shows the end card once all runs are complete", %{conn: conn} do
+  test "shows pre_modification transition card after all writing runs complete", %{conn: conn} do
+    Application.put_env(
+      :ownership_ash_chat,
+      :study_modification_responder,
+      {__MODULE__, :stub_modification}
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:ownership_ash_chat, :study_modification_responder)
+    end)
+
+    session = generate(session())
+    run1 = generate(run(session_id: session.id, run_index: 1, ai_mode: :without_ai))
+
+    completed =
+      Enum.reduce(["eins", "zwei", "drei"], run1, fn line, r ->
+        Study.add_user_passage!(r, line)
+      end)
+
+    Study.submit_likert!(completed, %{
+      likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+    })
+
+    conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
+    {:ok, view, html} = live(conn, ~p"/study")
+
+    # Only one writing run, it's done → transition card
+    assert html =~ "Schreibphase abgeschlossen"
+    assert html =~ "Weiter"
+    refute html =~ "Studie abgeschlossen"
+
+    # Clicking Weiter creates the modification run
+    view |> element("button", "Weiter") |> render_click()
+
+    rendered = render(view)
+    assert rendered =~ "Modifikations-Run"
+    assert rendered =~ "Original-Haiku"
+    assert rendered =~ "Modifiziertes Haiku"
+    assert rendered =~ "(modified)"
+    assert rendered =~ "Fragebogen"
+  end
+
+  test "modification run Likert → Weiter → end screen, session :completed", %{conn: conn} do
+    Application.put_env(
+      :ownership_ash_chat,
+      :study_modification_responder,
+      {__MODULE__, :stub_modification}
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:ownership_ash_chat, :study_modification_responder)
+    end)
+
+    session = generate(session())
+    run1 = generate(run(session_id: session.id, run_index: 1, ai_mode: :without_ai))
+
+    completed =
+      Enum.reduce(["eins", "zwei", "drei"], run1, fn line, r ->
+        Study.add_user_passage!(r, line)
+      end)
+
+    Study.submit_likert!(completed, %{
+      likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+    })
+
+    conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
+    {:ok, view, _html} = live(conn, ~p"/study")
+
+    # Advance to modification run
+    view |> element("button", "Weiter") |> render_click()
+    assert render(view) =~ "Modifikations-Run"
+
+    # Submit Likert for modification run → Weiter appears
+    view
+    |> form("#likert-form", %{
+      "likert" => %{"zufriedenheit" => "4", "freude" => "4", "fluss" => "4"}
+    })
+    |> render_submit()
+
+    assert render(view) =~ "Weiter"
+
+    # Weiter → end screen
+    view |> element("button", "Weiter") |> render_click()
+
+    rendered = render(view)
+    assert rendered =~ "Studie abgeschlossen"
+    assert rendered =~ session.id
+
+    # Session must be :completed in the database
+    reloaded = Study.get_session!(session.id)
+    assert reloaded.status == :completed
+    refute is_nil(reloaded.completed_at)
+  end
+
+  test "flash 'picked randomly' shown when multiple runs tie on Likert average", %{conn: conn} do
+    Application.put_env(
+      :ownership_ash_chat,
+      :study_modification_responder,
+      {__MODULE__, :stub_modification}
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:ownership_ash_chat, :study_modification_responder)
+    end)
+
+    session = generate(session())
+
+    # Two runs with identical Likert scores → tie.
+    for idx <- [1, 2] do
+      r = generate(run(session_id: session.id, run_index: idx, ai_mode: :without_ai))
+
+      completed =
+        Enum.reduce(["eins", "zwei", "drei"], r, fn line, run ->
+          Study.add_user_passage!(run, line)
+        end)
+
+      Study.submit_likert!(completed, %{
+        likert: %{"zufriedenheit" => 4, "freude" => 4, "fluss" => 4}
+      })
+    end
+
+    conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
+    {:ok, view, _html} = live(conn, ~p"/study")
+
+    assert render(view) =~ "Schreibphase abgeschlossen"
+
+    view |> element("button", "Weiter") |> render_click()
+
+    assert render(view) =~ "picked randomly"
+  end
+
+  test "shows the end card once all runs are complete (legacy: no modification run)", %{
+    conn: conn
+  } do
     session = generate(session())
     run = generate(run(session_id: session.id, run_index: 1, ai_mode: :without_ai))
 
@@ -77,7 +213,7 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
 
     {:ok, _view, html} = live(conn, ~p"/study")
-    assert html =~ "Alle Runs abgeschlossen"
-    assert html =~ session.id
+    # With no modification run yet we expect the transition card.
+    assert html =~ "Schreibphase abgeschlossen"
   end
 end

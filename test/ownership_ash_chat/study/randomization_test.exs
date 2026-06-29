@@ -47,4 +47,67 @@ defmodule OwnershipAshChat.Study.RandomizationTest do
       assert MapSet.size(sequences) == 8
     end
   end
+
+  describe "best_run/1" do
+    # Minimal fake run maps — only fields best_run/1 touches.
+    defp fake_run(index, likert) do
+      %{run_index: index, final_haiku: "haiku #{index}", likert: likert}
+    end
+
+    test "picks the run with the highest Likert average" do
+      runs = [
+        fake_run(1, %{"a" => 3, "b" => 3}),
+        fake_run(2, %{"a" => 5, "b" => 5}),
+        fake_run(3, %{"a" => 2, "b" => 2}),
+        fake_run(4, %{"a" => 4, "b" => 4})
+      ]
+
+      {best, tied?} = Randomization.best_run(runs)
+
+      assert best.run_index == 2
+      refute tied?
+    end
+
+    test "tied? is false when there is a clear winner" do
+      runs = [
+        fake_run(1, %{"a" => 3}),
+        fake_run(2, %{"a" => 5})
+      ]
+
+      {_best, tied?} = Randomization.best_run(runs)
+      refute tied?
+    end
+
+    test "tied? is true when multiple runs share the max average" do
+      runs = [
+        fake_run(1, %{"a" => 5, "b" => 5}),
+        fake_run(2, %{"a" => 5, "b" => 5}),
+        fake_run(3, %{"a" => 3, "b" => 3})
+      ]
+
+      {best, tied?} = Randomization.best_run(runs)
+
+      assert tied?
+      assert best.run_index in [1, 2]
+    end
+
+    test "picks one of the tied runs when all scores are equal" do
+      runs = Enum.map(1..4, fn i -> fake_run(i, %{"a" => 4, "b" => 4}) end)
+
+      {best, tied?} = Randomization.best_run(runs)
+
+      assert tied?
+      assert best.run_index in 1..4
+    end
+
+    test "treats empty likert map as average 0.0" do
+      runs = [
+        fake_run(1, %{}),
+        fake_run(2, %{"a" => 1})
+      ]
+
+      {best, _} = Randomization.best_run(runs)
+      assert best.run_index == 2
+    end
+  end
 end

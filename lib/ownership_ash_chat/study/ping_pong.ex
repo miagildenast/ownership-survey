@@ -71,6 +71,76 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
+  Resolve and invoke the configured modification responder. Defaults to
+  `generate_modification/3`. Injectable via:
+
+      config :ownership_ash_chat, :study_modification_responder, {MyStub, :reply}
+  """
+  def respond_modification(haiku, variant, opts \\ []) do
+    {mod, fun} =
+      Application.get_env(
+        :ownership_ash_chat,
+        :study_modification_responder,
+        {__MODULE__, :generate_modification}
+      )
+
+    apply(mod, fun, [haiku, variant, opts])
+  end
+
+  @doc """
+  Call the LLM to produce a variant-modified copy of a German haiku.
+
+  Falls back to the original haiku unchanged on LLM error.
+  """
+  def generate_modification(haiku, variant, _opts \\ []) do
+    messages =
+      [system_message(), Context.user(modification_prompt(haiku, variant))]
+      |> Enum.reject(&is_nil/1)
+
+    case ReqLLM.generate_text(
+           ReqLLM.model!(LLM.model()),
+           Context.new(messages),
+           LLM.req_llm_opts()
+         ) do
+      {:ok, response} ->
+        response |> ReqLLM.Response.text() |> to_string() |> strip_haiku()
+
+      {:error, reason} ->
+        Logger.error("PingPong modification LLM call failed: #{inspect(reason)}")
+        haiku
+    end
+  end
+
+  @doc """
+  Prompt asking the model to modify a haiku according to the given variant.
+
+  Variant `:a` = one word changed, `:b` = one line replaced, `:c` = two lines replaced.
+  """
+  def modification_prompt(haiku, variant) do
+    change_desc =
+      case variant do
+        :a -> "Change exactly one word in the entire haiku."
+        :b -> "Replace exactly one complete line of the haiku."
+        :c -> "Replace exactly two complete lines of the haiku."
+      end
+
+    """
+    Modify the following German haiku.
+
+    Original haiku:
+    #{haiku}
+
+    Modification: #{change_desc}
+
+    Constraints:
+    - Keep exactly 3 lines.
+    - Output language: German.
+    - Do not add quotation marks, explanations, or any additional text.
+    - Output only the modified haiku (3 lines).
+    """
+  end
+
+  @doc """
   The literal prompt asking the model for the second haiku line, given line 1.
 
   TODO: this deliberately follows the study's literal prompt and does NOT pass the
@@ -109,9 +179,12 @@ defmodule OwnershipAshChat.Study.PingPong do
   defp strip_line(text) do
     text
     |> String.trim()
-    |> String.replace(~r/^["„“”']+|["„“”']+$/u, "")
+    |> String.replace(~r/^[“„””']+|[“„””']+$/u, "")
     |> String.trim()
   end
+
+  # Strip overall whitespace from a 3-line haiku response.
+  defp strip_haiku(text), do: String.trim(text)
 
   defp last_user_text(transcript) do
     transcript

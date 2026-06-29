@@ -35,6 +35,7 @@ defmodule OwnershipAshChat.StudyGenerators do
         # random data (e.g. a stray `[%{}]` transcript), keeping runs deterministic.
         transcript: [],
         final_haiku: nil,
+        topic: nil,
         started_at: nil,
         completed_at: nil,
         session_id: session_id

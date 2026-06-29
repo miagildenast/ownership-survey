@@ -172,6 +172,36 @@ defmodule OwnershipAshChatWeb.StudyComponents do
     """
   end
 
+  @doc """
+  Renders the modification run's display: original haiku and the AI-modified version.
+
+  Assigns:
+    * `:run` — the `kind: :modification` `Study.Run` record.
+  """
+  attr :run, :map, required: true
+
+  def modification_panel(assigns) do
+    ~H"""
+    <div class="space-y-6">
+      <section class="rounded-xl border border-base-300 p-4 space-y-3">
+        <h2 class="font-medium">Original-Haiku (Run {@run.source_run_index})</h2>
+        <pre class="whitespace-pre-wrap text-base-content/80">{@run.original_haiku}</pre>
+      </section>
+
+      <section class="rounded-xl border border-base-300 p-4 space-y-3">
+        <h2 class="font-medium">Modifiziertes Haiku</h2>
+        <pre class="whitespace-pre-wrap">{@run.modified_haiku}</pre>
+        <p class="text-xs text-base-content/50">{variant_label(@run.variant)}</p>
+      </section>
+    </div>
+    """
+  end
+
+  defp variant_label(:a), do: "Variante A: Ein Wort verändert"
+  defp variant_label(:b), do: "Variante B: Eine Zeile verändert"
+  defp variant_label(:c), do: "Variante C: Zwei Zeilen verändert"
+  defp variant_label(_), do: ""
+
   @doc "Whether the run's questionnaire has been answered."
   def likert_submitted?(run), do: map_size(run.likert || %{}) > 0
 

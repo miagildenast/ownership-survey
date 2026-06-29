@@ -258,6 +258,20 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "complete_session/1" do
+    test "marks session :completed and stamps completed_at" do
+      session = generate(session())
+
+      assert session.status == :in_progress
+      assert is_nil(session.completed_at)
+
+      completed = Study.complete_session!(session)
+
+      assert completed.status == :completed
+      refute is_nil(completed.completed_at)
+    end
+  end
+
   describe "generators" do
     test "build records with unique defaults" do
       s1 = generate(session())

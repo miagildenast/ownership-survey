@@ -32,6 +32,13 @@ defmodule OwnershipAshChat.Study.Session do
       change OwnershipAshChat.Study.Session.Changes.SeedRuns
     end
 
+    # Mark the session complete after the modification run's Likert is submitted
+    # (plan step #7). Sets status :completed and stamps completed_at.
+    update :complete do
+      change set_attribute(:status, :completed)
+      change set_attribute(:completed_at, &DateTime.utc_now/0)
+    end
+
     # Export reads (step 8): JSON is only an on-demand artifact, generated from
     # these read actions which load the runs relationship. Serialization lives in
     # `OwnershipAshChat.Study.Export`.

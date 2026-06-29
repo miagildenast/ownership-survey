@@ -47,8 +47,19 @@ fresh session — drawing `topic_source_order` and seeding the four randomized `
 runs — stashes the `session_id` in your session cookie, and drops you on `/study` at Run 1.
 
 Walk each run: set the topic (for `:free` runs), add your lines (ping-pong with the AI for
-`:with_ai` runs), and once the haiku is complete click **Weiter** to advance. After Run 4
-the end card shows the session id. Reloading mid-flow resumes at the current run.
+`:with_ai` runs), and once the haiku is complete submit the questionnaire then click
+**Weiter** to advance.
+
+After all four writing runs:
+
+1. A transition card ("Schreibphase abgeschlossen") appears — click **Weiter**.
+2. The app picks the best-scoring run (highest Likert average; random tie-break shows a
+   flash), draws a modification variant (one word / one line / two lines), and calls the LLM
+   to produce the modified haiku.
+3. Rate the modification with the questionnaire, then click **Weiter**.
+4. The end screen shows the **session UUID** to copy back into the upstream study tool.
+
+Reloading mid-flow resumes at the current run without triggering a second LLM call.
 
 > `:without_ai` runs need no LLM. `:with_ai` runs call the model for line 2, so they need a
 > backend running (see [LLM backend](#llm-backend)).

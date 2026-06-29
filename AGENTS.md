@@ -296,19 +296,33 @@ after 1; step 8 any time after 1.
    `%{"zufriedenheit" => 5}`, mirroring `transcript`. Surfaced in the dev harness
    `StudyWritingLive` (`/dev/study/run/:run_id`): the questionnaire appears once the run has
    auto-completed (`completed_at` set), submits, then shows the saved answers read-only.
-6. **Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
-   modifies the haiku; ask Likert again.
-7. **End screen** — show `session_id` (UUID) for return to the originating tool; mark
-   session `:completed`.
+6. ~~**Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
+   modifies the haiku; ask Likert again.~~ ✅ **Done** — `Randomization.best_run/1` picks
+   the writing run with the highest Likert average (random tie-break; flashes `"picked
+   randomly"` in the frontend). `PingPong.respond_modification/3` calls the LLM with a
+   variant-specific prompt (`modification_prompt/2`; injectable responder for tests via
+   `:study_modification_responder` app env). `StudySessionLive` creates the `kind:
+   :modification` run (fields `variant`, `source_run_index`, `original_haiku`,
+   `modified_haiku`, `completed_at` set at creation) on the explicit "Weiter" click after
+   the transition card — never on mount, so reloads do not trigger a second LLM call.
+   `StudyComponents.modification_panel/1` shows both haiku versions + variant label.
+7. ~~**End screen** — show `session_id` (UUID) for return to the originating tool; mark
+   session `:completed`.~~ ✅ **Done** — `Session :complete` action (+ `Study.complete_session!/1`
+   code interface) sets `status: :completed` and stamps `completed_at`. Called in
+   `StudySessionLive.advance_run` after the modification run's Likert is submitted. The
+   `:all_done` render branch shows the session UUID in a selectable mono block.
 8. ~~**Export** — read action loading `session` + `runs`, serialized to JSON.~~ ✅ **Done**
 
 ## Open questions (to clarify before implementation)
 
-1. **"Best" run for run 5**: highest Likert average, all items positively coded (clarified).
+1. ~~**"Best" run for run 5**: highest Likert average, all items positively coded (clarified).
    Open only: **tie-break** on equal scores (e.g. random, or a preferred
-   `topic_source`/`ai_mode`).
-2. **Modification variant distribution**: are `:a/:b/:c` drawn uniformly at random, or
-   balanced (e.g. against the best run's `topic_source`/`ai_mode`)?
+   `topic_source`/`ai_mode`).~~ **Resolved** — tie-break is random; frontend flashes
+   `"picked randomly"` when multiple runs share the max average.
+2. ~~**Modification variant distribution**: are `:a/:b/:c` drawn uniformly at random, or
+   balanced (e.g. against the best run's `topic_source`/`ai_mode`)?~~ **Resolved** —
+   drawn uniformly at random (`Enum.random([:a, :b, :c])`).
+
 3. **Topic prompt**: Fixed topic pool, drawn at random, or configured per study?
 4. **Ping-pong**: Fixed number of rounds? Who starts (user or AI)? When does a run end?
 5. **Likert questionnaire**: Which concrete items, which scale (e.g. 5- or 7-point)? Same
