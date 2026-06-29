@@ -16,6 +16,8 @@ defmodule OwnershipAshChat.Study.PingPong do
   (string keys, matching what the jsonb column returns on read).
   """
 
+  require Logger
+
   alias OwnershipAshChat.LLM
   alias ReqLLM.Context
 
@@ -59,8 +61,12 @@ defmodule OwnershipAshChat.Study.PingPong do
            Context.new(messages),
            LLM.req_llm_opts()
          ) do
-      {:ok, response} -> response |> ReqLLM.Response.text() |> to_string() |> strip_line()
-      {:error, _reason} -> "…"
+      {:ok, response} ->
+        response |> ReqLLM.Response.text() |> to_string() |> strip_line()
+
+      {:error, reason} ->
+        Logger.error("PingPong LLM call failed: #{inspect(reason)}")
+        "error im llm"
     end
   end
 

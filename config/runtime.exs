@@ -5,15 +5,19 @@ llm_config =
     # prod (Uberspace): OpenRouter via OpenAI-kompatiblen Endpoint.
     [
       model: %{
-        provider: :openai,
+        provider: :openrouter,
         id: System.get_env("LLM_MODEL", "openai/gpt-oss-120b:free"),
         base_url: System.get_env("LLM_BASE_URL", "https://openrouter.ai/api/v1")
       },
       req_llm_opts: [
         api_key:
           System.get_env("OPENROUTER_API_KEY") ||
-            raise("Missing environment variable OPENROUTER_API_KEY"),
-        provider_options: [reasoning: %{enabled: true}]
+            raise("Missing environment variable OPENROUTER_API_KEY")
+        # gpt-oss is a reasoning model and this OpenRouter endpoint makes reasoning
+        # mandatory (it cannot be disabled/excluded). The `:openrouter` provider
+        # parses the response so reasoning lands in `:thinking` parts and
+        # `ReqLLM.Response.text/1` returns only the clean final line — so we leave
+        # reasoning at its default and pass no reasoning options here.
       ]
     ]
   else
