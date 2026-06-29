@@ -210,8 +210,10 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
               Alle vier Runs wurden abgeschlossen. Im nächsten Schritt siehst du eine
               KI-Modifikation deines besten Haikus und bewertest sie kurz.
             </p>
-            <div class="flex justify-end">
-              <.button phx-click="next_run">Weiter</.button>
+            <div class="flex justify-end" phx-mounted={JS.focus(to: "#weiter-btn")}>
+              <.button id="weiter-btn" phx-click="next_run" phx-disable-with="Bitte warten, KI modifiziert…">
+                Weiter – KI-Modifikation starten
+              </.button>
             </div>
           </section>
         <% end %>
@@ -220,6 +222,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
           <header class="space-y-1">
             <%= if @run.kind == :modification do %>
               <h1 class="text-2xl font-semibold">Modifikations-Run</h1>
+              <pre><small>case_id: {@study.case_id}</small></pre>
               <p class="text-sm text-base-content/70">
                 Basierend auf Run {@run.source_run_index}
               </p>
@@ -227,8 +230,9 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
               <h1 class="text-2xl font-semibold">
                 Run {@run.run_index} von {@total_runs}
               </h1>
+              <pre><small>case_id: {@study.case_id}</small></pre>
               <p class="text-sm text-base-content/70">
-                {topic_source_label(@run.topic_source)} · {ai_mode_label(@run.ai_mode)} · {@study.case_id}
+                {topic_source_label(@run.topic_source)} · {ai_mode_label(@run.ai_mode)}
               </p>
             <% end %>
           </header>
@@ -245,8 +249,12 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
           <.likert_panel :if={@step in [:likert, :run_complete]} run={@run} />
 
-          <div :if={@step == :run_complete} class="flex justify-end">
-            <.button phx-click="next_run">Weiter</.button>
+          <div
+            :if={@step == :run_complete}
+            class="flex justify-end"
+            phx-mounted={JS.focus(to: "#weiter-btn")}
+          >
+            <.button id="weiter-btn" phx-click="next_run">Weiter</.button>
           </div>
         <% end %>
       </div>

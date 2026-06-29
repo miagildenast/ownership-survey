@@ -35,7 +35,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           phx-submit="set_topic"
           class="flex gap-2 items-end"
         >
-          <.input type="text" name="topic" value="" label="Thema wählen" />
+          <.input type="text" name="topic" value="" label="Thema wählen" phx-mounted={JS.focus()} />
           <.button>Speichern</.button>
         </.form>
         <p
@@ -76,12 +76,15 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         >
           <.input
             type="text"
-            id={"passage-input-#{length(@run.transcript || [])}"}
+            id={"passage-input-#{length(@run.transcript || [])}-#{not is_nil(@run.topic)}"}
             name="text"
             value=""
             label="Deine Zeile"
+            phx-mounted={if not (is_nil(@run.topic) and @run.topic_source == :free), do: JS.focus()}
           />
-          <.button>Senden</.button>
+          <.button phx-disable-with={if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"}>
+            Senden
+          </.button>
         </.form>
         <p :if={@lines_done?} class="text-sm text-base-content/60">
           Schreibphase abgeschlossen ({PingPong.lines()} Zeilen).
@@ -137,11 +140,11 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         phx-submit="submit_likert"
         class="space-y-6"
       >
-        <fieldset :for={item <- @likert_items} class="space-y-2">
+        <fieldset :for={{item, item_idx} <- Enum.with_index(@likert_items)} class="space-y-2">
           <legend class="text-sm font-medium text-base-content">{item.prompt}</legend>
-          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+          <div class="flex flex-col gap-2">
             <label
-              :for={{label, value} <- @likert_options}
+              :for={{{label, value}, opt_idx} <- Enum.with_index(@likert_options)}
               class="flex items-center gap-2 cursor-pointer text-sm text-base-content/80 transition-colors hover:text-base-content"
             >
               <input
@@ -151,6 +154,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
                 checked={likert_value(@run, item.key) == value}
                 class="radio radio-sm radio-primary"
                 required
+                phx-mounted={if item_idx == 0 and opt_idx == 0, do: JS.focus()}
               />
               <span>{label}</span>
             </label>
