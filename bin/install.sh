@@ -18,30 +18,7 @@ mix local.rebar --force
 mix deps.get --only prod
 mix compile
 
-## pre-place the esbuild/tailwind linux binaries.
-##
-## mix esbuild/tailwind would otherwise download them itself, but Erlang/OTP 28's
-## TLS 1.3 stack fails the GitHub middlebox handshake ("hello_retry_middlebox_assert")
-## so the in-VM download dies. curl's TLS works fine, so we fetch the binaries to the
-## exact paths the mix tasks expect; they then skip their own broken download.
-## Versions must match config/config.exs (esbuild + tailwind `version:`).
-ESBUILD_VERSION="0.25.4"
-TAILWIND_VERSION="4.3.0"
-esbuild_bin="_build/esbuild-linux-x64"
-tailwind_bin="_build/tailwind-linux-x64-${TAILWIND_VERSION}"
-
-if [ ! -x "$esbuild_bin" ]; then
-  curl -fsSL "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-${ESBUILD_VERSION}.tgz" -o /tmp/esbuild.tgz
-  tar -xzf /tmp/esbuild.tgz -C /tmp
-  cp /tmp/package/bin/esbuild "$esbuild_bin"
-  chmod +x "$esbuild_bin"
-fi
-
-if [ ! -x "$tailwind_bin" ]; then
-  curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/tailwindcss-linux-x64" -o "$tailwind_bin"
-  chmod +x "$tailwind_bin"
-fi
-
-## build assets (no assets/package.json in this project — npm is not used)
-mix phx.digest.clean
-mix assets.deploy
+## NOTE: assets are NOT built here. Tailwind v4 cannot run on uberspace (its native
+## @parcel/watcher needs a newer libstdc++ than the host ships). bin/deploy.sh builds
+## the assets locally and rsyncs the compiled priv/static; bin/release.sh's `mix release`
+## then packages it. So no npm install / assets.deploy / phx.digest on the server.

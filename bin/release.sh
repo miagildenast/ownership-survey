@@ -13,10 +13,11 @@ mix release --overwrite
 ## load prod secrets/env for the migrate step.
 ## runtime.exs requires DATABASE_PATH, SECRET_KEY_BASE, TOKEN_SIGNING_SECRET and
 ## OPENROUTER_API_KEY in :prod for *every* release command (including `eval`).
-## Single source of truth is the supervisord ini: we parse its `environment=`
-## block (indented KEY="val", lines, comments and trailing commas stripped) so
-## there is no separate .env file to keep in sync.
-ini="bin/ownership_ash_chat.ini"
+## Single source of truth is the deployed supervisord ini (bin/deploy.sh rsyncs it to
+## ~/etc/services.d/; the project copy is gitignored and never shipped). We parse its
+## `environment=` block (indented KEY="val", lines, comments and trailing commas
+## stripped) so there is no separate .env file to keep in sync.
+ini="$HOME/etc/services.d/ownership_ash_chat.ini"
 if [ -f "$ini" ]; then
   set -a
   # shellcheck disable=SC1090
@@ -31,6 +32,9 @@ if [ -f "$ini" ]; then
     }
   ' "$ini")
   set +a
+else
+  echo "ERROR: supervisord ini not found at $ini — run bin/deploy.sh (it rsyncs it)." >&2
+  exit 1
 fi
 
 ## run database migrations

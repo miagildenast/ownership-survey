@@ -72,8 +72,6 @@ defmodule OwnershipAshChat.MixProject do
   defp deps do
     [
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:lumis, "~> 0.1"},
-      {:mdex, "~> 0.7"},
       {:picosat_elixir, "~> 0.2"},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:ash_phoenix, "~> 2.0"},

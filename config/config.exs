@@ -92,7 +92,13 @@ config :esbuild,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
-# Configure tailwind (the version is required)
+# Configure tailwind (the version is required).
+#
+# NOTE: assets are built LOCALLY and the compiled priv/static is shipped via rsync
+# (see bin/deploy.sh) — the server never runs tailwind. Tailwind v4 cannot run on
+# uberspace at all: both the standalone binary (Bun) and the npm CLI (node) load
+# @parcel/watcher, whose native module needs a newer libstdc++ (GLIBCXX_3.4.20) than
+# uberspace ships. So we use the standalone binary locally, where it works fine.
 config :tailwind,
   version: "4.3.0",
   ownership_ash_chat: [

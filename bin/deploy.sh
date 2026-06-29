@@ -9,6 +9,19 @@ set -euo pipefail
 : "${UBERSPACE_USER:?set UBERSPACE_USER (see .envrc.private.example)}"
 : "${UBERSPACE_SERVER:?set UBERSPACE_SERVER (see .envrc.private.example)}"
 
+remote="/home/$UBERSPACE_USER/ownership_ash_chat"
+
+# build assets LOCALLY and ship the compiled priv/static.
+#
+# Tailwind v4 cannot run on uberspace: both its standalone binary (Bun) and the npm
+# CLI (node) load @parcel/watcher, whose native module needs a newer libstdc++
+# (GLIBCXX_3.4.20) than uberspace ships. So we compile (to generate the
+# phoenix-colocated CSS) and run assets.deploy here, where tailwind works, then rsync
+# the result. The server never builds assets.
+echo ">> building assets locally (MIX_ENV=prod)"
+MIX_ENV=prod mix compile
+MIX_ENV=prod mix assets.deploy
+
 # synchronize project files (respect .gitignore, never ship .git)
 #
 # NOTE: the trailing slash on the source is load-bearing. Without it rsync's
@@ -20,7 +33,14 @@ set -euo pipefail
 # excluded explicitly, since git cannot ignore itself).
 rsync --archive --compress --progress --partial --human-readable \
       --filter=":- .gitignore" --exclude=".git" "$(pwd)/" \
-      "$UBERSPACE_USER@$UBERSPACE_SERVER:/home/$UBERSPACE_USER/ownership_ash_chat/"
+      "$UBERSPACE_USER@$UBERSPACE_SERVER:$remote/"
+
+# ship the locally-built assets. priv/static is gitignored (build artifact), so the
+# gitignore-driven sync above skips it — push it explicitly. --delete prunes stale
+# digested files on the server.
+rsync --archive --compress --progress --partial --human-readable --delete \
+      "$(pwd)/priv/static/" \
+      "$UBERSPACE_USER@$UBERSPACE_SERVER:$remote/priv/static/"
 
 # install the supervisord service definition
 rsync --archive --compress --progress --partial --human-readable \
