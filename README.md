@@ -67,6 +67,51 @@ r = hd(OwnershipAshChat.Study.get_session!(s.id, load: [:runs]).runs)
 
 Other dev tooling: LiveDashboard at `/dev/dashboard`, mailbox preview at `/dev/mailbox`.
 
+## Exporting study data
+
+Sessions are stored relationally; JSON is an on-demand export artifact.
+
+### Locally
+
+The `study.export` Mix task (dev only — Mix is not in a release):
+
+```sh
+mix study.export <session_id>              # one session, to stdout
+mix study.export --all                     # every session
+mix study.export --all --status completed  # filter by status
+mix study.export --all -o sessions.json    # write to a file
+```
+
+Or from IEx (`iex -S mix`), the same code interfaces the task uses:
+
+```elixir
+# one session
+OwnershipAshChat.Study.export_session!("<session_id>")
+|> OwnershipAshChat.Study.Export.to_json!()
+
+# all (optionally filtered)
+OwnershipAshChat.Study.list_sessions_for_export!(%{status: :completed})
+|> OwnershipAshChat.Study.Export.to_json!()
+```
+
+### On prod
+
+Run `bin/export.sh` **from the client** (like `bin/deploy.sh`; needs `UBERSPACE_USER` /
+`UBERSPACE_SERVER`). It builds the JSON on the server, then rsyncs it down to the local
+path you give:
+
+```sh
+./bin/export.sh                              # all -> ./study_export_all.json
+./bin/export.sh completed                    # completed -> ./study_export_completed.json
+./bin/export.sh completed ~/Desktop/x.json   # completed -> given local path
+```
+
+Mix tasks don't ship in a release, so the server side (`bin/export_remote.sh`, invoked
+over SSH) loads the prod env from the supervisord service file and calls
+`OwnershipAshChat.Release.export/2`. That starts the repo on its own — no dependency on
+the running app or Erlang distribution (`remote`/`rpc` need a cookie + epmd, which this
+deploy doesn't set up).
+
 ## Production
 
 ### Hosting on [Uberspace](https://uberspace.de)

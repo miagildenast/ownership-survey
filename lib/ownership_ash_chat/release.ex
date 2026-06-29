@@ -18,6 +18,37 @@ defmodule OwnershipAshChat.Release do
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
   end
 
+  @doc """
+  Export study sessions as JSON.
+
+  Starts the repo on its own (via `Ecto.Migrator.with_repo`), so it works under
+  `bin/ownership_ash_chat eval` without the full app running. When the app is
+  already up (prod), prefer calling `OwnershipAshChat.Study` + `Export` directly
+  from `bin/ownership_ash_chat remote` instead of this helper.
+
+  `status` filters by session status (`:in_progress | :completed | :aborted`);
+  `nil` exports every session. With `path`, writes the JSON to that file;
+  without, returns the JSON string.
+  """
+  def export(path \\ nil, status \\ nil) do
+    load_app()
+    [repo | _] = repos()
+
+    {:ok, json, _} =
+      Ecto.Migrator.with_repo(repo, fn _repo ->
+        filter = if status, do: %{status: status}, else: %{}
+
+        filter
+        |> OwnershipAshChat.Study.list_sessions_for_export!()
+        |> OwnershipAshChat.Study.Export.to_json!()
+      end)
+
+    case path do
+      nil -> json
+      path -> File.write!(path, json)
+    end
+  end
+
   defp repos do
     Application.fetch_env!(@app, :ecto_repos)
   end
