@@ -74,7 +74,13 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           phx-submit="add_passage"
           class="space-y-2"
         >
-          <.input type="textarea" name="text" value="" label="Deine Zeile" />
+          <.input
+            type="text"
+            id={"passage-input-#{length(@run.transcript || [])}"}
+            name="text"
+            value=""
+            label="Deine Zeile"
+          />
           <.button>Senden</.button>
         </.form>
         <p :if={@lines_done?} class="text-sm text-base-content/60">
@@ -129,18 +135,27 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         for={%{}}
         id="likert-form"
         phx-submit="submit_likert"
-        class="space-y-4"
+        class="space-y-6"
       >
-        <.input
-          :for={item <- @likert_items}
-          type="select"
-          name={"likert[#{item.key}]"}
-          options={@likert_options}
-          value={likert_value(@run, item.key)}
-          prompt="Bitte wählen"
-          label={item.prompt}
-          required
-        />
+        <fieldset :for={item <- @likert_items} class="space-y-2">
+          <legend class="text-sm font-medium text-base-content">{item.prompt}</legend>
+          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+            <label
+              :for={{label, value} <- @likert_options}
+              class="flex items-center gap-2 cursor-pointer text-sm text-base-content/80 transition-colors hover:text-base-content"
+            >
+              <input
+                type="radio"
+                name={"likert[#{item.key}]"}
+                value={value}
+                checked={likert_value(@run, item.key) == value}
+                class="radio radio-sm radio-primary"
+                required
+              />
+              <span>{label}</span>
+            </label>
+          </div>
+        </fieldset>
         <.button>Fragebogen absenden</.button>
       </.form>
 
