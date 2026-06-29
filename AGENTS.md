@@ -2,7 +2,13 @@ This is a web application written using the Phoenix web framework.
 
 ## Project guidelines
 
-- Use `mix precommit` alias when you are done with all changes and fix any pending issues
+- **`mix precommit` is the required final gate for every Elixir change.** Run it once after
+  all changes are made and fix every issue it reports before considering the work done — never
+  treat a change as complete on the strength of piecemeal checks alone. Individual steps
+  (`mix compile`, `mix format <file>`, a single `mix test <file>`) **may** be used freely
+  *during* development for debugging or fast feedback, but they do **not** substitute for the
+  final `mix precommit` run; the alias exists so nothing (format, warnings-as-errors, tests)
+  is skipped at the end.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
 ### Phoenix v1.8 guidelines

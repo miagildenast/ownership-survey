@@ -14,7 +14,7 @@
   ## list of tools (see `mix check` docs for a list of default curated tools)
   tools: [
     ## curated tools may be disabled (e.g. the check for compilation warnings)
-    # {:compiler, false},
+    {:npm_test, false}
 
     ## ...or have command & args adjusted (e.g. enable skip comments for sobelow)
     # {:sobelow, "mix sobelow --exit --skip"},
