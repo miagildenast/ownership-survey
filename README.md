@@ -16,18 +16,12 @@ and [Production](#production) below.
 
 ## LLM backend
 
-The chatbot is config-driven (`OwnershipAshChat.LLM`):
-
-- **prod** — OpenRouter via OpenAI-compatible endpoint (`OPENROUTER_API_KEY`
-  required), default model `openai/gpt-oss-120b:free`
-- **dev/test** — a local OpenAI-compatible endpoint, by default
-  [LM Studio](https://lmstudio.ai/) on `http://localhost:1234/v1`
+Config-driven (`OwnershipAshChat.LLM`, wired up in `config/runtime.exs` — see the comments
+there for dev/test vs. prod and how to switch prod between OpenRouter and the real OpenAI
+API). Matching API key goes in `bin/ownership_ash_chat.ini` (see its `.example`).
 
 `:with_ai` (ping-pong) runs call the model, so they need a backend running.
 `:without_ai` (solo writing) runs need **no** LLM.
-
-Tunable via `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY` / `OPENROUTER_API_KEY`
-(see `config/runtime.exs`).
 
 ## Local debug session
 
@@ -136,8 +130,10 @@ app is (re)started under [supervisord](https://manual.uberspace.de/daemons-super
 1. Copy `.envrc.private.example` → `.envrc.private` and set `UBERSPACE_USER` /
    `UBERSPACE_SERVER` (then `direnv allow`).
 2. Copy `bin/ownership_ash_chat.ini.example` → `bin/ownership_ash_chat.ini` and fill in
-   `USER`, `PHX_HOST`, `DATABASE_PATH`, `OPENROUTER_API_KEY`, and the two secrets
-   (`mix phx.gen.secret` for `SECRET_KEY_BASE` and `TOKEN_SIGNING_SECRET`). This file is
+   `USER`, `PHX_HOST`, `DATABASE_PATH`, the two secrets (`mix phx.gen.secret` for
+   `SECRET_KEY_BASE` and `TOKEN_SIGNING_SECRET`), and the API key matching whichever LLM
+   backend option is active in `config/runtime.exs` — `OPENROUTER_API_KEY` for Option A or
+   `OPENAI_API_KEY` for Option B (see [LLM backend](#llm-backend)). This file is
    gitignored and synced to `~/etc/services.d/` by the deploy script. It is the **single
    source of truth** for prod env: `bin/release.sh` parses its `environment=` block for
    the migration step, so there is no separate `.env` file.

@@ -2,27 +2,44 @@ import Config
 
 llm_config =
   if config_env() == :prod do
-    # prod (Uberspace): OpenRouter via OpenAI-kompatiblen Endpoint.
+    # prod (Uberspace): via OpenRouter (OpenAI-compatible) OR real OpenAI API.
+    # To switch: comment/uncomment the block.
+
+    # --- Option A: OpenRouter ---
+    # [
+    #   model: %{
+    #     provider: :openrouter,
+    #     id: System.get_env("LLM_MODEL", "openai/gpt-oss-120b:free"),
+    #     base_url: System.get_env("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+    #   },
+    #   req_llm_opts: [
+    #     api_key:
+    #       System.get_env("OPENROUTER_API_KEY") ||
+    #         raise("Missing environment variable OPENROUTER_API_KEY")
+    #     # gpt-oss is a reasoning model and this OpenRouter endpoint makes reasoning
+    #     # mandatory (it cannot be disabled/excluded). The `:openrouter` provider
+    #     # parses the response so reasoning lands in `:thinking` parts and
+    #     # `ReqLLM.Response.text/1` returns only the clean final line — so we leave
+    #     # reasoning at its default and pass no reasoning options here.
+    #   ]
+    # ]
+
+    # --- Option B: real OpenAI API ---
     [
       model: %{
-        provider: :openrouter,
-        id: System.get_env("LLM_MODEL", "openai/gpt-oss-120b:free"),
-        base_url: System.get_env("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        provider: :openai,
+        id: System.get_env("LLM_MODEL", "gpt-4o-mini"),
+        base_url: System.get_env("LLM_BASE_URL", "https://api.openai.com/v1")
       },
       req_llm_opts: [
         api_key:
-          System.get_env("OPENROUTER_API_KEY") ||
-            raise("Missing environment variable OPENROUTER_API_KEY")
-        # gpt-oss is a reasoning model and this OpenRouter endpoint makes reasoning
-        # mandatory (it cannot be disabled/excluded). The `:openrouter` provider
-        # parses the response so reasoning lands in `:thinking` parts and
-        # `ReqLLM.Response.text/1` returns only the clean final line — so we leave
-        # reasoning at its default and pass no reasoning options here.
+          System.get_env("OPENAI_API_KEY") ||
+            raise("Missing environment variable OPENAI_API_KEY")
       ]
     ]
   else
-    # test bypasst den LLM via Stub-Responder (config/test.exs) — daher dort keine
-    # echten Secrets nötig; nur :dev erzwingt die Env-Variablen.
+    # test bypasses the LLM via stub responder (config/test.exs) — so no real
+    # secrets needed there; only :dev enforces the env vars.
     # api_key = System.get_env("ANTHROPIC_AUTH_TOKEN") || System.get_env("ANTHROPIC_API_KEY")
     # base_url = System.get_env("ANTHROPIC_BASE_URL")
 
@@ -40,7 +57,7 @@ llm_config =
     #   ]
     # ]
 
-    # dev/test: lokal gehostet via LM Studio (OpenAI-kompatibel) — vorerst deaktiviert
+    # dev/test: locally hosted via LM Studio (OpenAI-compatible) — currently disabled
     [
       model: %{
         provider: :openai,

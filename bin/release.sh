@@ -12,7 +12,9 @@ mix release --overwrite
 
 ## load prod secrets/env for the migrate step.
 ## runtime.exs requires DATABASE_PATH, SECRET_KEY_BASE, TOKEN_SIGNING_SECRET and
-## OPENROUTER_API_KEY in :prod for *every* release command (including `eval`).
+## the API key for whichever LLM backend option is active (OPENROUTER_API_KEY or
+## OPENAI_API_KEY — see config/runtime.exs) in :prod for *every* release command
+## (including `eval`).
 ## Single source of truth is the deployed supervisord ini (bin/deploy.sh rsyncs it to
 ## ~/etc/services.d/; the project copy is gitignored and never shipped). We parse its
 ## `environment=` block (indented KEY="val", lines, comments and trailing commas

@@ -8,9 +8,15 @@ environment=
     DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
     SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
     TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",
+    # LLM backend — must match whichever option is uncommented in config/runtime.exs.
+    # Option A (OpenRouter):
     OPENROUTER_API_KEY="!! your OpenRouter API key !!",
     LLM_MODEL="openai/gpt-oss-120b:free",
     LLM_BASE_URL="https://openrouter.ai/api/v1"
+    # Option B (real OpenAI API) — comment out the 3 lines above, uncomment these:
+    # OPENAI_API_KEY="!! your OpenAI API key !!",
+    # LLM_MODEL="gpt-4o-mini",
+    # LLM_BASE_URL="https://api.openai.com/v1"
     # SQLite is built against uberspace's system lib at deploy time
     # (see bin/install.sh: EXQLITE_USE_SYSTEM). No runtime EXQLITE env needed.
 autostart=yes
