@@ -211,7 +211,11 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
               KI-Modifikation deines besten Haikus und bewertest sie kurz.
             </p>
             <div class="flex justify-end" phx-mounted={JS.focus(to: "#weiter-btn")}>
-              <.button id="weiter-btn" phx-click="next_run" phx-disable-with="Bitte warten, KI modifiziert…">
+              <.button
+                id="weiter-btn"
+                phx-click="next_run"
+                phx-disable-with="Bitte warten, KI modifiziert…"
+              >
                 Weiter – KI-Modifikation starten
               </.button>
             </div>

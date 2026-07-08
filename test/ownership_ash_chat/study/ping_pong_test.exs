@@ -21,6 +21,53 @@ defmodule OwnershipAshChat.Study.PingPongTest do
     end
   end
 
+  describe "second_line_retry_prompt/3" do
+    test "names the rejected line and its measured syllable count" do
+      prompt = PingPong.second_line_retry_prompt("Alte Eiche", "viel zu lange Zeile hier", 9)
+
+      assert prompt =~ "„Alte Eiche“"
+      assert prompt =~ "„viel zu lange Zeile hier“"
+      assert prompt =~ "had 9 syllables"
+      assert prompt =~ "EXACTLY 7 syllables"
+    end
+  end
+
+  describe "generate_passage/2 validation loop" do
+    @run %{transcript: [%{"role" => "user", "text" => "Alte Eiche"}]}
+
+    test "retries with feedback until a valid 7-syllable line appears" do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      generator = fn prompt ->
+        Agent.update(agent, &(&1 + 1))
+        # base prompt → invalid (5 syllables); retry prompt → valid (7 syllables)
+        if prompt =~ "previous attempt",
+          do: "Frösche springen ins Wasser",
+          else: "Stille an dem Teich"
+      end
+
+      assert {:ok, "Frösche springen ins Wasser"} =
+               PingPong.generate_passage(@run, line_generator: generator)
+
+      assert Agent.get(agent, & &1) == 2
+    end
+
+    test "falls back to the candidate closest to 7 syllables after max attempts" do
+      generator = fn prompt ->
+        # base → 5 syllables (distance 2); retries → 8 syllables (distance 1)
+        if prompt =~ "previous attempt",
+          do: "Frösche springen ins Wasser hin",
+          else: "Stille an dem Teich"
+      end
+
+      assert {:fallback, "Frösche springen ins Wasser hin", candidates} =
+               PingPong.generate_passage(@run, line_generator: generator)
+
+      assert length(candidates) == PingPong.line_attempts()
+      assert List.first(candidates) == "Stille an dem Teich"
+    end
+  end
+
   describe "modification_prompt/2" do
     @haiku "alter Teich\nFrosch springt hinein\nWasserklang"
 

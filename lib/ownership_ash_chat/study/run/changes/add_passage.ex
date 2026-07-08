@@ -35,8 +35,7 @@ defmodule OwnershipAshChat.Study.Run.Changes.AddPassage do
       # The AI takes exactly one turn: line 2, right after the human's first line.
       new_transcript =
         if run.ai_mode == :with_ai and user_count(transcript) == 0 do
-          ai_text = PingPong.respond(%{run | transcript: with_user})
-          with_user ++ [passage("ai", ai_text)]
+          with_user ++ [ai_passage(%{run | transcript: with_user})]
         else
           with_user
         end
@@ -60,6 +59,26 @@ defmodule OwnershipAshChat.Study.Run.Changes.AddPassage do
 
   defp assemble(transcript) do
     transcript |> Enum.map_join("\n", &text/1)
+  end
+
+  # Build the AI passage from the responder result. The responder may return a plain
+  # binary (test stubs) or `{:ok, line}` / `{:fallback, line, candidates}` from the
+  # validated ping-pong loop. A fallback line carries its tried candidates on the
+  # passage (jsonb) so the UI can flag it and the export retains it.
+  defp ai_passage(run) do
+    case PingPong.respond(run) do
+      {:ok, line} ->
+        passage("ai", line)
+
+      {:fallback, line, candidates} ->
+        Map.merge(passage("ai", line), %{
+          "fallback" => true,
+          "candidates" => Enum.map(candidates, &to_string/1)
+        })
+
+      line when is_binary(line) ->
+        passage("ai", line)
+    end
   end
 
   defp passage(role, text) do

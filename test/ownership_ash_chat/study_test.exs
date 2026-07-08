@@ -172,6 +172,32 @@ defmodule OwnershipAshChat.StudyTest do
       assert ai_text == OwnershipAshChat.Study.PingPongStub.text()
     end
 
+    test "with_ai persists fallback candidates when the AI could not hit the syllable target" do
+      Application.put_env(
+        :ownership_ash_chat,
+        :study_responder,
+        {OwnershipAshChat.Study.FallbackResponder, :reply}
+      )
+
+      on_exit(fn ->
+        Application.put_env(
+          :ownership_ash_chat,
+          :study_responder,
+          {OwnershipAshChat.Study.PingPongStub, :reply}
+        )
+      end)
+
+      run = generate(run(ai_mode: :with_ai))
+
+      updated = Study.add_user_passage!(run, "Stille am Teich")
+
+      assert [%{"role" => "user"}, ai_passage] = updated.transcript
+      assert ai_passage["role"] == "ai"
+      assert ai_passage["text"] == "Kurze Zeile"
+      assert ai_passage["fallback"] == true
+      assert ai_passage["candidates"] == ["Kurze Zeile", "Andere Zeile"]
+    end
+
     test "with_ai run is three lines [human, AI, human], then auto-completes" do
       ai = OwnershipAshChat.Study.PingPongStub.text()
 

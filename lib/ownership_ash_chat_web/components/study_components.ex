@@ -64,6 +64,10 @@ defmodule OwnershipAshChatWeb.StudyComponents do
               {passage_role(passage)}
             </span>
             <div>{passage_text(passage)}</div>
+            <p :if={passage_candidates(passage)} class="mt-1 text-xs text-base-content/60">
+              KI konnte nicht zuverlässig eine Zeile generieren, hier sind die
+              ausprobierten Kandidaten: {Enum.join(passage_candidates(passage), ", ")}
+            </p>
           </li>
         </ul>
 
@@ -82,7 +86,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
             label="Deine Zeile"
             phx-mounted={if not (is_nil(@run.topic) and @run.topic_source == :free), do: JS.focus()}
           />
-          <.button phx-disable-with={if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"}>
+          <.button phx-disable-with={
+            if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"
+          }>
             Senden
           </.button>
         </.form>
@@ -109,6 +115,12 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   defp passage_text(%{"text" => text}), do: text
   defp passage_text(%{text: text}), do: text
   defp passage_text(_), do: ""
+
+  # Non-empty candidate list only for AI passages flagged as fallbacks; nil otherwise.
+  defp passage_candidates(%{"fallback" => true, "candidates" => [_ | _] = candidates}),
+    do: candidates
+
+  defp passage_candidates(_), do: nil
 
   @doc """
   Renders the post-run Likert questionnaire (plan step #5).

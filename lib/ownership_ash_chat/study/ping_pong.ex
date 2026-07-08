@@ -19,7 +19,10 @@ defmodule OwnershipAshChat.Study.PingPong do
   require Logger
 
   alias OwnershipAshChat.LLM
+  alias OwnershipAshChat.Study.Syllables
   alias ReqLLM.Context
+
+  @target_syllables 7
 
   @doc """
   Total number of lines (passages) a writing run holds before it auto-completes.
@@ -28,6 +31,12 @@ defmodule OwnershipAshChat.Study.PingPong do
   lines. The AI therefore takes exactly one turn — generating line 2.
   """
   def lines, do: Application.get_env(:ownership_ash_chat, :ping_pong_lines, 3)
+
+  @doc """
+  Max number of LLM attempts to produce a valid (7-syllable) second line before
+  giving up and returning the closest candidate. Tunable via app env.
+  """
+  def line_attempts, do: Application.get_env(:ownership_ash_chat, :ping_pong_line_attempts, 4)
 
   @doc """
   Resolve and invoke the configured responder. Defaults to `generate_passage/2`.
@@ -44,16 +53,75 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
-  Generate the AI's haiku line (line 2) from the run's transcript via the LLM.
+  Generate the AI's haiku line (line 2) from the run's transcript.
 
   The AI only ever takes the second turn, so the human's first line is the most
-  recent passage in the transcript when this runs.
-  """
-  def generate_passage(run, _opts) do
-    line1 = last_user_text(run.transcript || [])
+  recent passage in the transcript when this runs. Each generated line is validated
+  against the target syllable count (`Syllables.count/1`); on a mismatch the model is
+  re-prompted with corrective feedback, up to `line_attempts/0` times.
 
+  Returns:
+
+    * `{:ok, line}` — a valid 7-syllable line was produced.
+    * `{:fallback, line, candidates}` — no attempt hit the target; `line` is the
+      candidate closest to 7 syllables and `candidates` lists every tried line, in
+      order. Callers surface this so the participant knows the line is unreliable.
+
+  Text generation is injectable (per prompt) via `opts[:line_generator]` or the
+  `:study_line_generator` app env, mirroring the `:study_responder` pattern so tests
+  can drive the loop without a live model.
+  """
+  def generate_passage(run, opts \\ []) do
+    line1 = last_user_text(run.transcript || [])
+    generator = line_generator(opts)
+    attempt_line(line1, generator, line_attempts(opts), nil, [])
+  end
+
+  defp attempt_line(line1, generator, remaining, previous, candidates) do
+    prompt =
+      case previous do
+        nil -> second_line_prompt(line1)
+        {bad_line, count} -> second_line_retry_prompt(line1, bad_line, count)
+      end
+
+    line = generator |> invoke_generator(prompt) |> strip_line()
+    count = Syllables.count(line)
+    candidates = candidates ++ [line]
+
+    cond do
+      count == @target_syllables -> {:ok, line}
+      remaining <= 1 -> {:fallback, closest_candidate(candidates), candidates}
+      true -> attempt_line(line1, generator, remaining - 1, {line, count}, candidates)
+    end
+  end
+
+  defp closest_candidate(candidates) do
+    Enum.min_by(candidates, fn line -> abs(Syllables.count(line) - @target_syllables) end)
+  end
+
+  defp line_generator(opts) do
+    opts[:line_generator] ||
+      Application.get_env(
+        :ownership_ash_chat,
+        :study_line_generator,
+        {__MODULE__, :complete_line}
+      )
+  end
+
+  defp line_attempts(opts), do: opts[:line_attempts] || line_attempts()
+
+  defp invoke_generator(fun, prompt) when is_function(fun, 1), do: fun.(prompt)
+  defp invoke_generator({mod, fun}, prompt), do: apply(mod, fun, [prompt])
+
+  @doc """
+  Default line generator: send a single prompt to the LLM and return its raw text.
+
+  Returns a sentinel string on hard LLM error (unchanged from the prior behavior);
+  the retry loop treats it as just another candidate.
+  """
+  def complete_line(prompt) do
     messages =
-      [system_message(), Context.user(second_line_prompt(line1))]
+      [system_message(), Context.user(prompt)]
       |> Enum.reject(&is_nil/1)
 
     case ReqLLM.generate_text(
@@ -62,7 +130,7 @@ defmodule OwnershipAshChat.Study.PingPong do
            LLM.req_llm_opts()
          ) do
       {:ok, response} ->
-        response |> ReqLLM.Response.text() |> to_string() |> strip_line()
+        response |> ReqLLM.Response.text() |> to_string()
 
       {:error, reason} ->
         Logger.error("PingPong LLM call failed: #{inspect(reason)}")
@@ -87,6 +155,10 @@ defmodule OwnershipAshChat.Study.PingPong do
     apply(mod, fun, [haiku, variant, opts])
   end
 
+  # FIXME: no syllable validation/retry here — the modified haiku can drift from 5-7-5.
+  # Apply the same validate-and-reprompt loop used for the second line
+  # (`attempt_line/5` + `Syllables.count/1`), checking each of the 3 lines and
+  # surfacing a fallback when the model won't converge.
   @doc """
   Call the LLM to produce a variant-modified copy of a German haiku.
 
@@ -163,6 +235,34 @@ defmodule OwnershipAshChat.Study.PingPong do
     - Do not add any text before or after the line.
     - The line must contain EXACTLY 7 syllables.
     - NEVER return a line with more or fewer than 7 syllables.
+    - Before answering, split every word into syllables and count them.
+    - Return only the second line.
+    """
+  end
+
+  @doc """
+  Corrective prompt used after a rejected attempt: it names the rejected line and its
+  measured syllable count so the model gets concrete feedback instead of re-rolling
+  blind.
+  """
+  def second_line_retry_prompt(line1, rejected_line, count) do
+    """
+    Generate the second line of a German haiku.
+
+    First line:
+    „#{line1}“
+
+    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
+    have EXACTLY 7 syllables. Write a DIFFERENT second line.
+
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 7 syllables.
+    - Before answering, split every word into syllables and count them.
     - Return only the second line.
     """
   end

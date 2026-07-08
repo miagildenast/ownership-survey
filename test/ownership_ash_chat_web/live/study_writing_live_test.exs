@@ -24,6 +24,34 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     assert [%{"role" => "user", "text" => "Stille am Teich"}] = reloaded.transcript
   end
 
+  test "renders a fallback note with the tried candidates when the AI gives up", %{conn: conn} do
+    Application.put_env(
+      :ownership_ash_chat,
+      :study_responder,
+      {OwnershipAshChat.Study.FallbackResponder, :reply}
+    )
+
+    on_exit(fn ->
+      Application.put_env(
+        :ownership_ash_chat,
+        :study_responder,
+        {OwnershipAshChat.Study.PingPongStub, :reply}
+      )
+    end)
+
+    run = generate(run(ai_mode: :with_ai))
+
+    {:ok, view, _html} = live(conn, ~p"/dev/study/run/#{run.id}")
+
+    view
+    |> form("form[phx-submit=add_passage]", %{"text" => "Stille am Teich"})
+    |> render_submit()
+
+    html = render(view)
+    assert html =~ "KI konnte nicht zuverlässig eine Zeile generieren"
+    assert html =~ "Kurze Zeile, Andere Zeile"
+  end
+
   test "the run auto-completes and assembles its haiku after three lines", %{conn: conn} do
     run = generate(run(ai_mode: :without_ai))
 
