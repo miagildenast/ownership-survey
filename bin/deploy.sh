@@ -11,6 +11,12 @@ set -euo pipefail
 
 remote="/home/$UBERSPACE_USER/ownership_ash_chat"
 
+# --skip-assets: skip local asset build, ship whatever's already in priv/static.
+skip_assets=false
+if [[ "${1:-}" == "--skip-assets" ]]; then
+  skip_assets=true
+fi
+
 # build assets LOCALLY and ship the compiled priv/static.
 #
 # Tailwind v4 cannot run on uberspace: both its standalone binary (Bun) and the npm
@@ -18,9 +24,21 @@ remote="/home/$UBERSPACE_USER/ownership_ash_chat"
 # (GLIBCXX_3.4.20) than uberspace ships. So we compile (to generate the
 # phoenix-colocated CSS) and run assets.deploy here, where tailwind works, then rsync
 # the result. The server never builds assets.
-echo ">> building assets locally (MIX_ENV=prod)"
-MIX_ENV=prod mix compile
-MIX_ENV=prod mix assets.deploy
+if [[ "$skip_assets" == true ]]; then
+  # guard: the second rsync below uses --delete against remote priv/static. If
+  # local priv/static is missing/empty, that rsync would wipe the server's assets
+  # instead of skipping them. Fail loudly instead.
+  if [[ ! -d "priv/static" ]] || [[ -z "$(ls -A priv/static 2>/dev/null)" ]]; then
+    echo "!! --skip-assets given but priv/static is missing or empty locally." >&2
+    echo "!! refusing to rsync --delete an empty dir over the server's assets." >&2
+    exit 1
+  fi
+  echo ">> skipping asset build (--skip-assets), shipping existing priv/static"
+else
+  echo ">> building assets locally (MIX_ENV=prod)"
+  MIX_ENV=prod mix compile
+  MIX_ENV=prod mix assets.deploy
+fi
 
 # synchronize project files (respect .gitignore, never ship .git)
 #

@@ -144,6 +144,9 @@ app is (re)started under [supervisord](https://manual.uberspace.de/daemons-super
 ./bin/deploy.sh
 ```
 
+> [TIP]
+> You can also deploy without building assets – eg you still have them locally: `./bin/deploy.sh --skip-assets`
+
 This runs, over SSH: `bin/install.sh` (deps + assets), `bin/release.sh` (`mix release`
 then run migrations via the release's `bin/migrate`), and `bin/restart_service.sh`
 (`supervisorctl` reread/update/restart).
