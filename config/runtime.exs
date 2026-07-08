@@ -70,6 +70,13 @@ llm_config =
 
 config :ownership_ash_chat, :llm, llm_config
 
+# Runtime log-level override. Prod compiles at :info (config/prod.exs); set
+# LOG_LEVEL=debug on the host (e.g. Uberspace) to surface ping-pong retry logs
+# without a redeploy. Runs after prod.exs, so it wins.
+if level = System.get_env("LOG_LEVEL") do
+  config :logger, level: String.to_existing_atom(level)
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

@@ -89,9 +89,25 @@ defmodule OwnershipAshChat.Study.PingPong do
     candidates = candidates ++ [line]
 
     cond do
-      count == @target_syllables -> {:ok, line}
-      remaining <= 1 -> {:fallback, closest_candidate(candidates), candidates}
-      true -> attempt_line(line1, generator, remaining - 1, {line, count}, candidates)
+      count == @target_syllables ->
+        {:ok, line}
+
+      remaining <= 1 ->
+        Logger.warning(
+          "PingPong: no valid 7-syllable line for #{inspect(line1)} after " <>
+            "#{length(candidates)} attempts; using closest candidate #{inspect(closest_candidate(candidates))}. " <>
+            "Tried: #{inspect(candidates)}"
+        )
+
+        {:fallback, closest_candidate(candidates), candidates}
+
+      true ->
+        Logger.debug(
+          "PingPong retry: line #{inspect(line)} has #{count} syllables (target 7); " <>
+            "re-prompting, #{remaining - 1} attempt(s) left"
+        )
+
+        attempt_line(line1, generator, remaining - 1, {line, count}, candidates)
     end
   end
 
