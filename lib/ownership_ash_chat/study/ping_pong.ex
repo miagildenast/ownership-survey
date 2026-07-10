@@ -303,6 +303,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - The line must contain EXACTLY 5 syllables.
     - NEVER return a line with more or fewer than 5 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the first line.
     """
   end
@@ -327,6 +328,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - Do not add any text before or after the line.
     - The line must contain EXACTLY 5 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the first line.
     """
   end
@@ -353,6 +355,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - The line must contain EXACTLY 7 syllables.
     - NEVER return a line with more or fewer than 7 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the second line.
     """
   end
@@ -380,6 +383,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - Do not add any text before or after the line.
     - The line must contain EXACTLY 7 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the second line.
     """
   end
@@ -407,6 +411,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - The line must contain EXACTLY 5 syllables.
     - NEVER return a line with more or fewer than 5 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the third line.
     """
   end
@@ -437,6 +442,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     - Do not add any text before or after the line.
     - The line must contain EXACTLY 5 syllables.
     - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Return only the third line.
     """
   end
