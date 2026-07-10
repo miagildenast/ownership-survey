@@ -49,5 +49,9 @@ defmodule OwnershipAshChat.Study.SyllablesTest do
       assert Syllables.count("") == 0
       assert Syllables.count("   ") == 0
     end
+
+    test "counts double vowels (Schnee) as one syllable" do
+      assert Syllables.count("im Schnee ver-sinkt der Mond") == 6
+    end
   end
 end

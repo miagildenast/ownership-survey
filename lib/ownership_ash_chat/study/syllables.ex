@@ -8,8 +8,11 @@ defmodule OwnershipAshChat.Study.Syllables do
   (`OwnershipAshChat.Study.PingPong`) absorbs the remaining error by re-prompting.
 
   The heuristic counts vowel groups: each run of vowels normally yields one syllable,
-  except a small set of German diphthongs (`ei`, `au`, `eu`, …) which are two letters
-  but one syllable. It is intentionally simple — not a hyphenation dictionary.
+  except a small set of German diphthongs (`ei`, `au`, `eu`, …) and doubled long
+  vowels (`aa`, `ee`, `oo` — Haar, Schnee, Boot) which are two letters but one
+  syllable. Known weakness: `-een` hiatus plurals (Seen, Ideen, Museen) are
+  undercounted by one, since their `ee` spans a syllable boundary. It is
+  intentionally simple — not a hyphenation dictionary.
   """
 
   @vowels ~w(a e i o u ä ö ü y)
@@ -47,6 +50,7 @@ defmodule OwnershipAshChat.Study.Syllables do
   defp do_count([a, b | rest]) do
     cond do
       (a <> b) in @diphthongs -> 1 + do_count(rest)
+      vowel?(a) and a == b -> 1 + do_count(rest)
       vowel?(a) -> 1 + do_count([b | rest])
       true -> do_count([b | rest])
     end
