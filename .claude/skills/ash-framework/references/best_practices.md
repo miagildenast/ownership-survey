@@ -1,23 +1,7 @@
-# Best Practices
+## Best Practices
 
-1. **Organize migrations**: Run `mix ash.codegen` after each meaningful set of resource changes with a descriptive name:
-   ```bash
-   mix ash.codegen --name add_user_roles
-   mix ash.codegen --name implement_post_tagging
-   ```
+1. **Let the Resource guide the UI**: Your Ash resource configuration determines a lot about how forms and inputs will work. Well-defined resources with appropriate validations and changes make AshPhoenix more effective.
 
-2. **Use check constraints for domain invariants**: Enforce data integrity at the database level:
-   ```elixir
-   check_constraints do
-     check_constraint :valid_status, check: "status IN ('pending', 'active', 'completed')"
-     check_constraint :positive_balance, check: "balance >= 0"
-   end
-   ```
+2. **Leverage code interfaces**: Define code interfaces on your domains for a clean and consistent API to call your resource actions.
 
-3. **Use custom statements for schema-only changes**: If you need to add database objects not directly tied to resources:
-   ```elixir
-   custom_statements do
-     statement "CREATE EXTENSION IF NOT EXISTS \"pgcrypto\""
-     statement "CREATE INDEX users_search_idx ON users USING gin(search_vector)"
-   end
-   ```
+3. **Update resources before editing**: When building forms for updating resources, load the resource with all required relationships using `Ash.load!/2` before creating the form.
