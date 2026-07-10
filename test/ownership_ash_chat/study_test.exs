@@ -135,6 +135,110 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "create_modification_run/1" do
+    # Fixed replacement line so the modification never hits a live LLM.
+    def stub_modification(_haiku, _variant, _line_index, _opts), do: "MOD-Zeile"
+
+    setup do
+      Application.put_env(
+        :ownership_ash_chat,
+        :study_modification_responder,
+        {__MODULE__, :stub_modification}
+      )
+
+      on_exit(fn ->
+        Application.delete_env(:ownership_ash_chat, :study_modification_responder)
+      end)
+    end
+
+    @likert %{likert: %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}}
+
+    # Complete a :without_ai writing run (three human lines + questionnaire).
+    defp complete_solo_run(session, run_index) do
+      run =
+        generate(
+          run(
+            session_id: session.id,
+            run_index: run_index,
+            topic_source: :free,
+            ai_mode: :without_ai
+          )
+        )
+
+      completed =
+        Enum.reduce(["eins", "zwei", "drei"], run, fn line, r ->
+          Study.add_user_passage!(r, line)
+        end)
+
+      Study.submit_likert!(completed, @likert)
+    end
+
+    test "targets the participant's first line (:without_ai → line 1)" do
+      session = generate(session())
+      complete_solo_run(session, 1)
+
+      mod = Study.create_modification_run!(session.id)
+
+      assert mod.kind == :modification
+      assert mod.source_run_index == 1
+      assert mod.variant in [:a, :b]
+      assert mod.modified_line_index == 0
+      assert mod.original_haiku == "eins\nzwei\ndrei"
+      # Only the first line changed; the rest are byte-identical.
+      assert mod.modified_haiku == "MOD-Zeile\nzwei\ndrei"
+    end
+
+    test "tags the rewritten line with the ai_enhanced role" do
+      session = generate(session())
+      complete_solo_run(session, 1)
+
+      mod = Study.create_modification_run!(session.id)
+
+      assert Enum.map(mod.transcript, & &1["role"]) == ["ai_enhanced", "user", "user"]
+      assert Enum.map(mod.transcript, & &1["text"]) == ["MOD-Zeile", "zwei", "drei"]
+    end
+
+    test "targets line 2 when the best run is :assigned/:with_ai" do
+      session = generate(session())
+
+      run =
+        generate(
+          run(
+            session_id: session.id,
+            run_index: 1,
+            topic_source: :assigned,
+            ai_mode: :with_ai,
+            topic: "Jahreszeiten"
+          )
+        )
+
+      # [AI, user, AI]: opener from begin_run, then one human line closes the run.
+      begun = Study.begin_run!(run)
+      completed = Study.add_user_passage!(begun, "meine Zeile")
+      Study.submit_likert!(completed, @likert)
+
+      mod = Study.create_modification_run!(session.id)
+
+      assert mod.modified_line_index == 1
+      assert Enum.at(mod.transcript, 1)["role"] == "ai_enhanced"
+      # The AI-written outer lines are preserved unchanged.
+      assert Enum.at(mod.transcript, 0)["role"] == "ai"
+      assert Enum.at(mod.transcript, 2)["role"] == "ai"
+    end
+
+    test "picks the writing run with the highest Likert average" do
+      session = generate(session())
+
+      low = complete_solo_run(session, 1)
+      Study.submit_likert!(low, %{likert: %{"zufriedenheit" => 1, "freude" => 1, "fluss" => 1}})
+      complete_solo_run(session, 2)
+
+      mod = Study.create_modification_run!(session.id)
+
+      assert mod.source_run_index == 2
+    end
+  end
+
   describe "get_session/2" do
     test "loads the runs relationship" do
       session = generate(session())

@@ -15,6 +15,7 @@ defmodule OwnershipAshChat.Study do
 
     resource OwnershipAshChat.Study.Run do
       define :create_run, action: :create
+      define :create_modification_run, action: :create_modification, args: [:session_id]
       define :get_run, action: :read, get_by: [:id]
       define :begin_run, action: :begin_run
       define :add_user_passage, action: :add_user_passage, args: [:text]

@@ -58,6 +58,7 @@ defmodule OwnershipAshChat.Study.Run do
         :completed_at,
         :variant,
         :source_run_index,
+        :modified_line_index,
         :original_haiku,
         :modified_haiku
       ]
@@ -65,6 +66,16 @@ defmodule OwnershipAshChat.Study.Run do
       argument :session_id, :uuid, allow_nil?: false
 
       change manage_relationship(:session_id, :session, type: :append)
+    end
+
+    # Build the fifth run from the session's completed writing runs: picks the best
+    # run + a variant, rewrites the participant's first line via the LLM, and stores
+    # the modification fields. Non-atomic: reads the writing runs and calls the LLM.
+    create :create_modification do
+      argument :session_id, :uuid, allow_nil?: false
+
+      change manage_relationship(:session_id, :session, type: :append)
+      change OwnershipAshChat.Study.Run.Changes.CreateModification
     end
   end
 
@@ -106,6 +117,8 @@ defmodule OwnershipAshChat.Study.Run do
     # Modification-run fields (kind == :modification only).
     attribute :variant, Types.Variant, public?: true
     attribute :source_run_index, :integer, public?: true
+    # 0-based index of the (participant-written) line that was rewritten.
+    attribute :modified_line_index, :integer, public?: true
     attribute :original_haiku, :string, public?: true
     attribute :modified_haiku, :string, public?: true
 

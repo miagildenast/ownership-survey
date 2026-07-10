@@ -41,6 +41,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
             class={[
               "rounded-lg px-3 py-2 text-sm",
               passage_role(passage) == "ai" && "bg-base-200",
+              passage_role(passage) == "ai_enhanced" && "bg-secondary/10",
               passage_role(passage) == "user" && "bg-primary/10"
             ]}
           >
@@ -181,25 +182,38 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   attr :run, :map, required: true
 
   def modification_panel(assigns) do
+    assigns =
+      assigns
+      |> assign(:original_lines, haiku_lines(assigns.run.original_haiku))
+      |> assign(:modified_lines, haiku_lines(assigns.run.modified_haiku))
+
     ~H"""
     <div class="space-y-6">
       <section class="rounded-xl border border-base-300 p-4 space-y-3">
         <h2 class="font-medium">Original-Haiku (Run {@run.source_run_index})</h2>
-        <pre class="whitespace-pre-wrap text-base-content/80">{@run.original_haiku}</pre>
+        <pre class="whitespace-pre-wrap text-base-content/80"><span
+          :for={{line, idx} <- Enum.with_index(@original_lines)}
+          class={idx == @run.modified_line_index && "font-bold"}
+        >{line}<br /></span></pre>
       </section>
 
       <section class="rounded-xl border border-base-300 p-4 space-y-3">
         <h2 class="font-medium">Modifiziertes Haiku</h2>
-        <pre class="whitespace-pre-wrap">{@run.modified_haiku}</pre>
+        <pre class="whitespace-pre-wrap"><span
+          :for={{line, idx} <- Enum.with_index(@modified_lines)}
+          class={idx == @run.modified_line_index && "font-bold"}
+        >{line}<br /></span></pre>
         <p class="text-xs text-base-content/50">{variant_label(@run.variant)}</p>
       </section>
     </div>
     """
   end
 
+  defp haiku_lines(nil), do: []
+  defp haiku_lines(haiku), do: String.split(haiku, "\n")
+
   defp variant_label(:a), do: "Variante A: Ein Wort verändert"
   defp variant_label(:b), do: "Variante B: Eine Zeile verändert"
-  defp variant_label(:c), do: "Variante C: Zwei Zeilen verändert"
   defp variant_label(_), do: ""
 
   @doc "Whether the run's questionnaire has been answered."

@@ -56,10 +56,29 @@ defmodule OwnershipAshChat.Study.Run.Transcript do
     end
   end
 
-  @doc "Build one transcript passage map."
+  @doc """
+  Build one transcript passage map.
+
+  Roles: `"user"` and `"ai"` for writing runs; the modification run additionally
+  uses `"ai_enhanced"` for the single line the AI rewrote (see
+  `Run.Changes.CreateModification`).
+  """
   def passage(role, text) do
     %{"role" => role, "text" => to_string(text), "at" => DateTime.utc_now()}
   end
+
+  @doc """
+  0-based index of the first participant-written passage in a transcript, or `nil`
+  if there is none. This is the only line the modification run may change (the
+  participant's own first line).
+  """
+  def first_user_index(transcript) do
+    Enum.find_index(transcript || [], fn passage -> role(passage) == "user" end)
+  end
+
+  defp role(%{"role" => role}), do: to_string(role)
+  defp role(%{role: role}), do: to_string(role)
+  defp role(_), do: nil
 
   @doc "Join the transcript's lines (in order) into the final haiku text."
   def assemble(transcript) do

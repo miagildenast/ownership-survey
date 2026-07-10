@@ -178,37 +178,97 @@ defmodule OwnershipAshChat.Study.PingPongTest do
     end
   end
 
-  describe "modification_prompt/2" do
+  describe "modification_prompt/3" do
     @haiku "alter Teich\nFrosch springt hinein\nWasserklang"
 
-    test "variant :a asks for one word changed" do
-      prompt = PingPong.modification_prompt(@haiku, :a)
+    test "variant :a asks for one word changed in the target line" do
+      prompt = PingPong.modification_prompt(@haiku, :a, 0)
 
       assert prompt =~ @haiku
-      assert prompt =~ "Change exactly one word"
+      assert prompt =~ "Change exactly one word in line 1."
+      # Targets the participant's line, not the whole haiku.
+      assert prompt =~ "alter Teich"
+      # Line 1 carries the 5-syllable target so the reprompt loop has a goal.
+      assert prompt =~ "EXACTLY 5 syllables"
     end
 
-    test "variant :b asks for one line replaced" do
-      prompt = PingPong.modification_prompt(@haiku, :b)
+    test "variant :b asks for the target line replaced" do
+      prompt = PingPong.modification_prompt(@haiku, :b, 1)
 
       assert prompt =~ @haiku
-      assert prompt =~ "Replace exactly one complete line"
+      assert prompt =~ "Replace line 2 entirely"
+      assert prompt =~ "Frosch springt hinein"
+      # Line 2 carries the 7-syllable target.
+      assert prompt =~ "EXACTLY 7 syllables"
     end
 
-    test "variant :c asks for two lines replaced" do
-      prompt = PingPong.modification_prompt(@haiku, :c)
+    test "all variants restrict output to a single German line" do
+      for variant <- [:a, :b] do
+        prompt = PingPong.modification_prompt(@haiku, variant, 0)
 
-      assert prompt =~ @haiku
-      assert prompt =~ "Replace exactly two complete lines"
-    end
-
-    test "all variants constrain to 3 lines and German output" do
-      for variant <- [:a, :b, :c] do
-        prompt = PingPong.modification_prompt(@haiku, variant)
-
-        assert prompt =~ "Keep exactly 3 lines."
+        assert prompt =~ "a single line"
         assert prompt =~ "Output language: German."
       end
+    end
+  end
+
+  describe "replace_line/3" do
+    test "swaps only the target line, leaving the others byte-identical" do
+      haiku = "alter Teich\nFrosch springt hinein\nWasserklang"
+
+      assert PingPong.replace_line(haiku, 1, "Vogel singt am Ast") ==
+               "alter Teich\nVogel singt am Ast\nWasserklang"
+    end
+  end
+
+  describe "modification_retry_prompt/5" do
+    @haiku "alter Teich\nFrosch springt hinein\nWasserklang"
+
+    test "names the rejected line, its count, and the target for the given line" do
+      prompt = PingPong.modification_retry_prompt(@haiku, :b, 1, "viel zu lang geraten hier", 9)
+
+      assert prompt =~ "Replace line 2 entirely"
+      assert prompt =~ "„viel zu lang geraten hier“ had 9 syllables"
+      assert prompt =~ "EXACTLY 7 syllables"
+      assert prompt =~ "Write a DIFFERENT version."
+    end
+  end
+
+  describe "generate_modification/4 validation loop" do
+    @haiku "alter Teich\nFrosch springt hinein\nWasserklang"
+
+    test "validates the modified line against the target and retries with feedback" do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      generator = fn prompt ->
+        Agent.update(agent, &(&1 + 1))
+        # Line 0 → 5-syllable target. Base → 7 syllables (invalid); retry → 5 (valid).
+        if prompt =~ "previous attempt",
+          do: "Stille an dem Teich",
+          else: "Frösche springen ins Wasser"
+      end
+
+      assert PingPong.generate_modification(@haiku, :a, 0, line_generator: generator) ==
+               "Stille an dem Teich"
+
+      assert Agent.get(agent, & &1) == 2
+    end
+
+    test "returns the closest candidate (a plain line, not a tuple) after max attempts" do
+      generator = fn prompt ->
+        # Line 1 → 7-syllable target. base → 5 (distance 2); retries → 8 (distance 1).
+        if prompt =~ "previous attempt",
+          do: "Frösche springen ins Wasser hin",
+          else: "Stille an dem Teich"
+      end
+
+      {result, log} =
+        with_log(fn ->
+          PingPong.generate_modification(@haiku, :b, 1, line_generator: generator)
+        end)
+
+      assert result == "Frösche springen ins Wasser hin"
+      assert log =~ "no valid 7-syllable line"
     end
   end
 end

@@ -128,13 +128,18 @@ An additional, **fifth run** builds on the results:
    - **Determination**: highest **average** across the run's Likert items.
    - All Likert questions are **positively coded** (higher = better), so they can be
      averaged directly without reverse-scoring.
-   - Tie-break on equal scores: still to be decided (see Open Questions).
-2. The chatbot modifies the haiku. There are **three variants**, and which one a
-   participant gets is **chosen at random**:
-   - **5a** – only **one word** in the whole haiku is changed
-   - **5b** – **one line** is changed
-   - **5c** – **two lines** are changed
-3. Afterwards the **Likert scale is asked again** (rating of the modified version).
+   - **Tie-break**: on equal averages the winner is chosen **at random**. Both the
+     best-run and tie-break logic live in the domain (`Run.Changes.CreateModification`
+     via `Randomization.best_run/1`), not the LiveView.
+2. **Only the participant's own first line is modified** — never an AI-written line
+   (`Transcript.first_user_index/1`): `:free && :with_ai` → line 1,
+   `:assigned && :with_ai` → line 2, `:without_ai` → line 1. The chatbot is asked for a
+   new version of just that one line, which is **spliced back in** so every other line
+   stays byte-identical.
+3. Two **variants**, chosen at random:
+   - **5a** – only **one word** in the target line is changed
+   - **5b** – the whole **target line** is replaced
+4. Afterwards the **Likert scale is asked again** (rating of the modified version).
 
 ## Access & Identification
 
@@ -164,12 +169,13 @@ An additional, **fifth run** builds on the results:
    - writing phase (alone or ping-pong with chatbot, depending on `ai_mode`; see
      Ping-pong mode for who starts),
    - Likert survey.
-3. Fifth run: modification on the best haiku (random variant 5a/5b/5c) + Likert.
+3. Fifth run: modification on the best haiku — the participant's own first line is
+   rewritten (random variant 5a/5b) + Likert.
 4. Display of the **UUID** (run/session ID) to return to the originating tool.
 
 ## Data model
 
-Persisted **relationally via AshPostgres** (the app already uses Postgres + AshPostgres):
+Persisted **relationally via AshSqlite** (the app uses SQLite + AshSqlite):
 a **`session`** resource `has_many` **`run`** resources. JSON is **not** the storage format
 — it is only an **export artifact**, generated on demand from a read action (load `session`
 with its `runs` and serialize, e.g. via `Jason`). Field names below are the proposed domain
@@ -201,10 +207,15 @@ attribute names (snake_case); exported JSON keys mirror them.
 
 ### Modification run (the fifth, `kind: :modification`)
 
-- `variant` – `:a` (one word) | `:b` (one line) | `:c` (two lines), assigned at random
+- `variant` – `:a` (one word) | `:b` (one line), assigned at random
 - `source_run_index` – which writing run was the "best" (highest Likert average) and used
   as the basis
-- `original_haiku` / `modified_haiku` – before/after the chatbot's change
+- `modified_line_index` – 0-based index of the (participant-written) line that was
+  rewritten
+- `original_haiku` / `modified_haiku` – before/after the chatbot's change (differ only in
+  the target line)
+- `transcript` – the three lines of the modified haiku; the rewritten line carries the
+  role **`ai_enhanced`**, the others keep their source roles (`user`/`ai`)
 - `likert` – questionnaire answers on the modified version
 
 ## Technical context (current state)
@@ -264,7 +275,7 @@ Nothing new, yet.
 6. **`case_id` security**: lean first pass treats the link value as the `case_id` verbatim
    and rejects only blank/missing (redirect to `/`). Open: signature/expiry/single-use
    validation.
-7. **Persistence**: resolved — store relationally via AshPostgres (`session` `has_many`
+7. **Persistence**: resolved — store relationally via AshSqlite (`session` `has_many`
    `run`); JSON is only an on-demand export artifact from a read action, not the storage
    format. Open only: export trigger/format details (single session vs. bulk, file vs.
    download endpoint).

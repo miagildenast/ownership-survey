@@ -20,8 +20,14 @@ defmodule OwnershipAshChat.Study.ExportTest do
         kind: :modification,
         variant: :a,
         source_run_index: 1,
-        original_haiku: "old",
-        modified_haiku: "new"
+        modified_line_index: 0,
+        original_haiku: "old\nb\nc",
+        modified_haiku: "new\nb\nc",
+        transcript: [
+          %{"role" => "ai_enhanced", "text" => "new"},
+          %{"role" => "user", "text" => "b"},
+          %{"role" => "user", "text" => "c"}
+        ]
       )
     )
 
@@ -77,8 +83,13 @@ defmodule OwnershipAshChat.Study.ExportTest do
 
       assert modification.variant == :a
       assert modification.source_run_index == 1
-      assert modification.original_haiku == "old"
-      assert modification.modified_haiku == "new"
+      assert modification.modified_line_index == 0
+      assert modification.original_haiku == "old\nb\nc"
+      assert modification.modified_haiku == "new\nb\nc"
+
+      # The rewritten line is tagged with the `ai_enhanced` role in the transcript.
+      assert Enum.map(modification.transcript, & &1["role"]) ==
+               ["ai_enhanced", "user", "user"]
     end
 
     test "to_json! round-trips with enums rendered as strings" do

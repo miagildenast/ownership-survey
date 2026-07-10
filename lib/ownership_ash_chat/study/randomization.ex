@@ -43,10 +43,9 @@ defmodule OwnershipAshChat.Study.Randomization do
   Picks the "best" writing run for the modification step (plan step #6).
 
   Best = highest average Likert score across all items (all positively coded, no
-  reverse-scoring needed). Tie-break is random; returns `{run, tied?}` so the
-  caller can surface a flash message when the choice was arbitrary.
+  reverse-scoring needed). On a tie the winner is chosen at random. Returns the run.
   """
-  @spec best_run([map()]) :: {map(), tied? :: boolean()}
+  @spec best_run([map()]) :: map()
   def best_run(writing_runs) do
     runs_with_avg =
       Enum.map(writing_runs, fn run ->
@@ -56,10 +55,11 @@ defmodule OwnershipAshChat.Study.Randomization do
       end)
 
     max_avg = runs_with_avg |> Enum.map(fn {_, avg} -> avg end) |> Enum.max()
-    top = Enum.filter(runs_with_avg, fn {_, avg} -> avg == max_avg end)
 
-    {best, _} = Enum.random(top)
-    {best, length(top) > 1}
+    runs_with_avg
+    |> Enum.filter(fn {_, avg} -> avg == max_avg end)
+    |> Enum.random()
+    |> elem(0)
   end
 
   @doc """

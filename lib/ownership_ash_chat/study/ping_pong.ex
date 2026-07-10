@@ -205,12 +205,16 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
-  Resolve and invoke the configured modification responder. Defaults to
-  `generate_modification/3`. Injectable via:
+  Resolve and invoke the configured modification responder, producing a new version
+  of a single haiku line. Defaults to `generate_modification/4`. Injectable via:
 
       config :ownership_ash_chat, :study_modification_responder, {MyStub, :reply}
+
+  Only the participant's own line is ever modified (`line_index`, 0-based); the full
+  `haiku` is passed for context. The responder returns just the new line text; the
+  caller splices it back into the haiku so every other line stays byte-identical.
   """
-  def respond_modification(haiku, variant, opts \\ []) do
+  def respond_modification(haiku, variant, line_index, opts \\ []) do
     {mod, fun} =
       Application.get_env(
         :ownership_ash_chat,
@@ -218,72 +222,104 @@ defmodule OwnershipAshChat.Study.PingPong do
         {__MODULE__, :generate_modification}
       )
 
-    apply(mod, fun, [haiku, variant, opts])
+    apply(mod, fun, [haiku, variant, line_index, opts])
   end
 
-  # FIXME: no syllable validation/retry here — the modified haiku can drift from 5-7-5.
-  # Apply the same validate-and-reprompt loop used for the generated lines
-  # (`attempt_line/6` + `Syllables.count/1`), checking each of the 3 lines and
-  # surfacing a fallback when the model won't converge.
   @doc """
-  Call the LLM to produce a variant-modified copy of a German haiku.
+  Produce a variant-modified version of a single haiku line, validated against its
+  5-7-5 syllable target (`@line_targets[line_index]`) with the same reprompt loop the
+  generated lines use (`attempt_line/6` + `Syllables.count/1`).
 
-  Falls back to the original haiku unchanged on LLM error.
+  Returns the new line text (a single line). When no attempt hits the target within
+  `line_attempts/0` tries, returns the candidate whose syllable count is closest to
+  the target — never a tuple, so the caller can splice it straight into the haiku.
+
+  Text generation is injectable via `opts[:line_generator]` / the `:study_line_generator`
+  app env, and the attempt budget via `opts[:line_attempts]`, mirroring
+  `generate_passage/2` so tests can drive the loop without a live model.
   """
-  def generate_modification(haiku, variant, _opts \\ []) do
-    prompt = modification_prompt(haiku, variant)
-
-    messages =
-      [system_message(), Context.user(prompt)]
-      |> Enum.reject(&is_nil/1)
+  def generate_modification(haiku, variant, line_index, opts \\ []) do
+    target = Map.fetch!(@line_targets, line_index)
+    base = modification_prompt(haiku, variant, line_index)
+    retry = &modification_retry_prompt(haiku, variant, line_index, &1, &2)
+    generator = line_generator(opts)
 
     Logger.debug(
-      "PingPong modification LLM request (variant #{inspect(variant)}, model #{inspect(LLM.model())}): #{inspect(prompt)}"
+      "PingPong modification (variant #{inspect(variant)}, line #{line_index}, " <>
+        "target #{target} syllables, model #{inspect(LLM.model())})"
     )
 
-    case ReqLLM.generate_text(
-           ReqLLM.model!(LLM.model()),
-           Context.new(messages),
-           LLM.req_llm_opts()
-         ) do
-      {:ok, response} ->
-        modified = response |> ReqLLM.Response.text() |> to_string() |> strip_haiku()
-        Logger.debug("PingPong modification LLM response: #{inspect(modified)}")
-        modified
-
-      {:error, reason} ->
-        Logger.error("PingPong modification LLM call failed: #{inspect(reason)}")
-        haiku
+    case attempt_line({base, retry}, target, generator, line_attempts(opts), nil, []) do
+      {:ok, line} -> line
+      {:fallback, line, _candidates} -> line
     end
   end
 
   @doc """
-  Prompt asking the model to modify a haiku according to the given variant.
+  Prompt asking the model to modify one line of a haiku (`line_index`, 0-based).
 
-  Variant `:a` = one word changed, `:b` = one line replaced, `:c` = two lines replaced.
+  Variant `:a` = change exactly one word in that line, `:b` = replace the whole line.
+  The full haiku is shown for context; the model must output only the single new
+  line, so the caller can splice it in without disturbing the other lines.
   """
-  def modification_prompt(haiku, variant) do
+  def modification_prompt(haiku, variant, line_index) do
+    original_line = line_at(haiku, line_index)
+    line_no = line_index + 1
+    target = Map.fetch!(@line_targets, line_index)
+
     change_desc =
       case variant do
-        :a -> "Change exactly one word in the entire haiku."
-        :b -> "Replace exactly one complete line of the haiku."
-        :c -> "Replace exactly two complete lines of the haiku."
+        :a -> "Change exactly one word in line #{line_no}."
+        :b -> "Replace line #{line_no} entirely with a new line."
       end
 
     """
-    Modify the following German haiku.
+    Here is a German haiku:
 
-    Original haiku:
     #{haiku}
 
+    Modify only line #{line_no}: „#{original_line}“
     Modification: #{change_desc}
 
     Constraints:
-    - Keep exactly 3 lines.
     - Output language: German.
+    - Output ONLY the new version of line #{line_no} — a single line.
+    - Keep the other lines out of your answer.
+    - The new line must contain EXACTLY #{target} syllables.
+    - NEVER return a line with more or fewer than #{target} syllables.
+    - Before answering, split every word into syllables and count them.
+    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
     - Do not add quotation marks, explanations, or any additional text.
-    - Output only the modified haiku (3 lines).
     """
+  end
+
+  @doc """
+  Corrective modification prompt used after a rejected attempt: names the rejected line
+  and its measured syllable count so the model gets concrete feedback instead of
+  re-rolling blind. Otherwise mirrors the base `modification_prompt/3`.
+  """
+  def modification_retry_prompt(haiku, variant, line_index, rejected_line, count) do
+    line_no = line_index + 1
+    target = Map.fetch!(@line_targets, line_index)
+
+    modification_prompt(haiku, variant, line_index) <>
+      """
+
+      Your previous attempt „#{rejected_line}“ had #{count} syllables, but line #{line_no} \
+      must have EXACTLY #{target} syllables. Write a DIFFERENT version.
+      """
+  end
+
+  @doc "Replace the 0-based line at `index` in a multi-line haiku with `new_line`."
+  def replace_line(haiku, index, new_line) do
+    haiku
+    |> String.split("\n")
+    |> List.replace_at(index, to_string(new_line))
+    |> Enum.join("\n")
+  end
+
+  defp line_at(haiku, index) do
+    haiku |> String.split("\n") |> Enum.at(index, "") |> to_string()
   end
 
   @doc """
@@ -462,9 +498,6 @@ defmodule OwnershipAshChat.Study.PingPong do
     |> String.replace(~r/^[“„””']+|[“„””']+$/u, "")
     |> String.trim()
   end
-
-  # Strip overall whitespace from a 3-line haiku response.
-  defp strip_haiku(text), do: String.trim(text)
 
   defp line_text(transcript, index) do
     transcript |> Enum.at(index) |> text()

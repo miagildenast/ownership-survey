@@ -36,8 +36,8 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     {conn, session}
   end
 
-  # Stub that returns the original haiku with " (modified)" appended to avoid live LLM calls.
-  def stub_modification(haiku, _variant, _opts), do: haiku <> " (modified)"
+  # Stub returning a single new line (the enhanced line) to avoid live LLM calls.
+  def stub_modification(_haiku, _variant, _line_index, _opts), do: "veränderte Zeile (modified)"
 
   test "redirects to / when no session cookie is set", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/study")
@@ -127,6 +127,8 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     assert rendered =~ "Original-Haiku"
     assert rendered =~ "Modifiziertes Haiku"
     assert rendered =~ "(modified)"
+    # The changed line is bold-printed in both the original and modified views.
+    assert rendered =~ "font-bold"
     assert rendered =~ "Fragebogen"
   end
 
@@ -180,43 +182,6 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     reloaded = Study.get_session!(session.id)
     assert reloaded.status == :completed
     refute is_nil(reloaded.completed_at)
-  end
-
-  test "flash 'picked randomly' shown when multiple runs tie on Likert average", %{conn: conn} do
-    Application.put_env(
-      :ownership_ash_chat,
-      :study_modification_responder,
-      {__MODULE__, :stub_modification}
-    )
-
-    on_exit(fn ->
-      Application.delete_env(:ownership_ash_chat, :study_modification_responder)
-    end)
-
-    session = generate(session())
-
-    # Two runs with identical Likert scores → tie.
-    for idx <- [1, 2] do
-      r = generate(run(session_id: session.id, run_index: idx, ai_mode: :without_ai))
-
-      completed =
-        Enum.reduce(["eins", "zwei", "drei"], r, fn line, run ->
-          Study.add_user_passage!(run, line)
-        end)
-
-      Study.submit_likert!(completed, %{
-        likert: %{"zufriedenheit" => 4, "freude" => 4, "fluss" => 4}
-      })
-    end
-
-    conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
-    {:ok, view, _html} = live(conn, ~p"/study")
-
-    assert render(view) =~ "Schreibphase abgeschlossen"
-
-    view |> element("button", "Weiter") |> render_click()
-
-    assert render(view) =~ "picked randomly"
   end
 
   test "shows the end card once all runs are complete (legacy: no modification run)", %{

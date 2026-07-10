@@ -15,7 +15,6 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
   alias OwnershipAshChat.Study
   alias OwnershipAshChat.Study.PingPong
-  alias OwnershipAshChat.Study.Randomization
 
   @impl true
   def mount(_params, session, socket) do
@@ -74,7 +73,9 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
         case modification_run(study) do
           nil ->
             # All writing done → create the modification run (blocking LLM call).
-            {socket, mod_run} = create_modification_run(socket, study)
+            # The domain picks the best run, variant, and target line (see
+            # Run.Changes.CreateModification).
+            mod_run = Study.create_modification_run!(study.id)
             fresh_study = Study.get_session!(study.id, load: [:runs])
             socket |> assign(:study, fresh_study) |> assign_run(mod_run)
 
@@ -90,27 +91,6 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
             end
         end
     end
-  end
-
-  defp create_modification_run(socket, study) do
-    writing = writing_runs(study)
-    {best, tied?} = Randomization.best_run(writing)
-    variant = Enum.random([:a, :b, :c])
-    modified_haiku = PingPong.respond_modification(best.final_haiku, variant)
-
-    mod_run =
-      Study.create_run!(%{
-        kind: :modification,
-        session_id: study.id,
-        variant: variant,
-        source_run_index: best.run_index,
-        original_haiku: best.final_haiku,
-        modified_haiku: modified_haiku,
-        completed_at: DateTime.utc_now()
-      })
-
-    socket = if tied?, do: put_flash(socket, :info, "picked randomly"), else: socket
-    {socket, mod_run}
   end
 
   # ---------------------------------------------------------------------------
