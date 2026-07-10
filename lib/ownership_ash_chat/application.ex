@@ -37,9 +37,11 @@ defmodule OwnershipAshChat.Application do
 
   # --- DEV: boot-time writing-run seeder (delete with the block above) ---
   defp seed_dev_run do
+    # os_time, not System.unique_integer/1: the latter restarts at small values on
+    # every VM boot and collides with sessions persisted by earlier boots.
     session =
       OwnershipAshChat.Study.create_session!(%{
-        case_id: "boot-#{System.unique_integer([:positive])}",
+        case_id: "boot-#{System.os_time(:millisecond)}",
         topic_source_order: [:free, :assigned]
       })
 
