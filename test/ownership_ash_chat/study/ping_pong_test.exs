@@ -1,6 +1,8 @@
 defmodule OwnershipAshChat.Study.PingPongTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias OwnershipAshChat.Study.PingPong
 
   describe "first_line_prompt/1" do
@@ -165,8 +167,11 @@ defmodule OwnershipAshChat.Study.PingPongTest do
           else: "Stille an dem Teich"
       end
 
-      assert {:fallback, "Frösche springen ins Wasser hin", candidates} =
-               PingPong.generate_passage(@run, line_generator: generator)
+      {result, log} =
+        with_log(fn -> PingPong.generate_passage(@run, line_generator: generator) end)
+
+      assert {:fallback, "Frösche springen ins Wasser hin", candidates} = result
+      assert log =~ "no valid 7-syllable line"
 
       assert length(candidates) == PingPong.line_attempts()
       assert List.first(candidates) == "Stille an dem Teich"
