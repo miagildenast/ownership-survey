@@ -106,7 +106,7 @@ defmodule OwnershipAshChat.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:ex_check_ng, "1.0.0-rc.0", only: [:dev, :test], runtime: false}
+      {:ex_check_ng, "1.0.0-rc.2", only: [:dev, :test], runtime: false}
     ]
   end
 
