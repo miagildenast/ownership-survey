@@ -12,7 +12,8 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     {:ok, view, html} = live(conn, ~p"/dev/study/run/#{run.id}")
 
     assert html =~ "Schreib-Run"
-    assert html =~ "Thema wählen"
+    # :free runs have no topic step — the first line sets the topic implicitly.
+    refute html =~ "Thema"
 
     view
     |> form("form[phx-submit=add_passage]", %{"text" => "Stille am Teich"})
@@ -22,6 +23,27 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
 
     reloaded = Study.get_run!(run.id)
     assert [%{"role" => "user", "text" => "Stille am Teich"}] = reloaded.transcript
+    # Mounting began the run.
+    refute is_nil(reloaded.started_at)
+  end
+
+  test "assigned/with_ai shows the topic and the AI's opening line on mount", %{conn: conn} do
+    run = generate(run(topic_source: :assigned, ai_mode: :with_ai, topic: "Jahreszeiten"))
+
+    {:ok, view, html} = live(conn, ~p"/dev/study/run/#{run.id}")
+
+    assert html =~ "Jahreszeiten"
+    assert html =~ OwnershipAshChat.Study.PingPongStub.text()
+
+    # The participant's single line (line 2) completes the run: AI closes with line 3.
+    view
+    |> form("form[phx-submit=add_passage]", %{"text" => "Frosch springt hinein"})
+    |> render_submit()
+
+    reloaded = Study.get_run!(run.id)
+    assert Enum.map(reloaded.transcript, & &1["role"]) == ["ai", "user", "ai"]
+    refute is_nil(reloaded.completed_at)
+    refute render(view) =~ "phx-submit=\"add_passage\""
   end
 
   test "renders a fallback note with the tried candidates when the AI gives up", %{conn: conn} do

@@ -40,9 +40,10 @@ Open [`localhost:4000/dev/study/new`](http://localhost:4000/dev/study/new). This
 fresh session — drawing `topic_source_order` and seeding the four randomized `:writing`
 runs — stashes the `session_id` in your session cookie, and drops you on `/study` at Run 1.
 
-Walk each run: set the topic (for `:free` runs), add your lines (ping-pong with the AI for
-`:with_ai` runs), and once the haiku is complete submit the questionnaire then click
-**Weiter** to advance.
+Walk each run: add your lines (ping-pong with the AI for `:with_ai` runs — the AI opens
+with line 1 in `:assigned` runs, and writes line 2 in `:free` runs where your first line
+sets the topic implicitly; `:assigned` runs display the fixed topic "Jahreszeiten"), and
+once the haiku is complete submit the questionnaire then click **Weiter** to advance.
 
 After all four writing runs:
 

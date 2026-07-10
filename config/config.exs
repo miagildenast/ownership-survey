@@ -53,7 +53,9 @@ config :spark,
 config :ownership_ash_chat,
   ecto_repos: [OwnershipAshChat.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [OwnershipAshChat.Study]
+  ash_domains: [OwnershipAshChat.Study],
+  # Fixed topic shown (and prompted) in all `topic_source: :assigned` study runs.
+  study_assigned_topic: "Jahreszeiten"
 
 # Configure the endpoint
 config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,

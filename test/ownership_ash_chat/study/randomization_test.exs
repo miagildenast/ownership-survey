@@ -28,6 +28,17 @@ defmodule OwnershipAshChat.Study.RandomizationTest do
       assert [r1.topic_source, r3.topic_source] == order
     end
 
+    test "assigned specs carry the fixed topic, free specs none" do
+      {_order, specs} = Randomization.draw_writing_plan()
+
+      for spec <- specs do
+        case spec.topic_source do
+          :assigned -> assert spec.topic == Randomization.assigned_topic()
+          :free -> assert is_nil(spec.topic)
+        end
+      end
+    end
+
     test "each block contains both ai_modes" do
       {_order, specs} = Randomization.draw_writing_plan()
       [r1, r2, r3, r4] = specs
@@ -45,6 +56,20 @@ defmodule OwnershipAshChat.Study.RandomizationTest do
 
       # 2 topic_source orders × 2 ai_mode orders per block = 8.
       assert MapSet.size(sequences) == 8
+    end
+  end
+
+  describe "assigned_topic/0" do
+    test "defaults to Jahreszeiten and reads the app env override" do
+      assert Randomization.assigned_topic() == "Jahreszeiten"
+
+      Application.put_env(:ownership_ash_chat, :study_assigned_topic, "Meer")
+
+      on_exit(fn ->
+        Application.put_env(:ownership_ash_chat, :study_assigned_topic, "Jahreszeiten")
+      end)
+
+      assert Randomization.assigned_topic() == "Meer"
     end
   end
 

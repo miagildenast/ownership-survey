@@ -1,7 +1,7 @@
 defmodule OwnershipAshChatWeb.StudyComponents do
   @moduledoc """
   Shared function components for the study writing flow. The `run_panel/1` block (topic
-  form + transcript + passage form + assembled haiku) is reused by both the session-driven
+  display + transcript + passage form + assembled haiku) is reused by both the session-driven
   `StudySessionLive` (`/study`) and the dev single-run harness `StudyWritingLive`
   (`/dev/study/run/:run_id`).
   """
@@ -25,25 +25,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   def run_panel(assigns) do
     ~H"""
     <div class="space-y-6">
-      <section class="rounded-xl border border-base-300 p-4 space-y-3">
+      <section :if={@run.topic} class="rounded-xl border border-base-300 p-4 space-y-3">
         <h2 class="font-medium">Thema</h2>
-        <p :if={@run.topic} class="text-base-content/80">{@run.topic}</p>
-        <.form
-          :if={@run.topic_source == :free and is_nil(@run.topic)}
-          for={%{}}
-          id="topic-form"
-          phx-submit="set_topic"
-          class="flex gap-2 items-end"
-        >
-          <.input type="text" name="topic" value="" label="Thema wählen" phx-mounted={JS.focus()} />
-          <.button>Speichern</.button>
-        </.form>
-        <p
-          :if={@run.topic_source == :assigned and is_nil(@run.topic)}
-          class="text-sm text-base-content/50"
-        >
-          Kein Thema gesetzt.
-        </p>
+        <p class="text-base-content/80">{@run.topic}</p>
       </section>
 
       <section class="rounded-xl border border-base-300 p-4 space-y-3">
@@ -80,11 +64,11 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         >
           <.input
             type="text"
-            id={"passage-input-#{length(@run.transcript || [])}-#{not is_nil(@run.topic)}"}
+            id={"passage-input-#{length(@run.transcript || [])}"}
             name="text"
             value=""
             label="Deine Zeile"
-            phx-mounted={if not (is_nil(@run.topic) and @run.topic_source == :free), do: JS.focus()}
+            phx-mounted={JS.focus()}
           />
           <.button phx-disable-with={
             if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"

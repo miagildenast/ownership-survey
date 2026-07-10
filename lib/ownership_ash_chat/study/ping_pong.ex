@@ -7,6 +7,18 @@ defmodule OwnershipAshChat.Study.PingPong do
   `Chat.Message.Changes.Respond` persistence is intentionally NOT reused — the
   study stores the transcript embedded on the run, not as `Chat.Message` rows.
 
+  Which lines the AI writes depends on the run's condition (5-7-5 targets):
+
+    * `:free && :with_ai`     → `[user, AI, user]` — the AI writes line 2
+      (7 syllables) from the participant's first line. There is no topic; the
+      first line sets it implicitly.
+    * `:assigned && :with_ai` → `[AI, user, AI]` — the AI opens with line 1
+      (5 syllables) from the assigned topic and closes with line 3 (5 syllables).
+
+  The AI's line for a given turn is derived purely from the transcript length:
+  position 0 → first line, 1 → second line, 2 → third line. Participant lines are
+  NEVER syllable-validated — only generated lines go through the retry loop.
+
   The responder is injectable via application config so tests can stub it and avoid
   hitting a live model:
 
@@ -22,18 +34,18 @@ defmodule OwnershipAshChat.Study.PingPong do
   alias OwnershipAshChat.Study.Syllables
   alias ReqLLM.Context
 
-  @target_syllables 7
+  # Haiku syllable targets by 0-based line position (5-7-5).
+  @line_targets %{0 => 5, 1 => 7, 2 => 5}
 
   @doc """
   Total number of lines (passages) a writing run holds before it auto-completes.
 
-  A `:with_ai` run is `[human, AI, human]`, a `:without_ai` run is three human
-  lines. The AI therefore takes exactly one turn — generating line 2.
+  Three lines regardless of condition; see the moduledoc for who writes which line.
   """
   def lines, do: Application.get_env(:ownership_ash_chat, :ping_pong_lines, 3)
 
   @doc """
-  Max number of LLM attempts to produce a valid (7-syllable) second line before
+  Max number of LLM attempts to produce a line with the target syllable count before
   giving up and returning the closest candidate. Tunable via app env.
   """
   def line_attempts, do: Application.get_env(:ownership_ash_chat, :ping_pong_line_attempts, 4)
@@ -53,18 +65,20 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
-  Generate the AI's haiku line (line 2) from the run's transcript.
+  Generate the AI's next haiku line from the run's transcript.
 
-  The AI only ever takes the second turn, so the human's first line is the most
-  recent passage in the transcript when this runs. Each generated line is validated
-  against the target syllable count (`Syllables.count/1`); on a mismatch the model is
-  re-prompted with corrective feedback, up to `line_attempts/0` times.
+  The line position is the current transcript length (0-based): position 0 is the
+  opening line prompted from `run.topic` (assigned runs), position 1 the second
+  line from line 1, position 2 the closing line from lines 1 and 2. Each generated
+  line is validated against its target syllable count (`Syllables.count/1`); on a
+  mismatch the model is re-prompted with corrective feedback, up to
+  `line_attempts/0` times.
 
   Returns:
 
-    * `{:ok, line}` — a valid 7-syllable line was produced.
+    * `{:ok, line}` — a line with the target syllable count was produced.
     * `{:fallback, line, candidates}` — no attempt hit the target; `line` is the
-      candidate closest to 7 syllables and `candidates` lists every tried line, in
+      candidate closest to the target and `candidates` lists every tried line, in
       order. Callers surface this so the participant knows the line is unreliable.
 
   Text generation is injectable (per prompt) via `opts[:line_generator]` or the
@@ -72,16 +86,36 @@ defmodule OwnershipAshChat.Study.PingPong do
   can drive the loop without a live model.
   """
   def generate_passage(run, opts \\ []) do
-    line1 = last_user_text(run.transcript || [])
+    transcript = run.transcript || []
+    position = length(transcript)
+    prompts = prompt_builders(run, transcript, position)
+    target = Map.fetch!(@line_targets, position)
     generator = line_generator(opts)
-    attempt_line(line1, generator, line_attempts(opts), nil, [])
+    attempt_line(prompts, target, generator, line_attempts(opts), nil, [])
   end
 
-  defp attempt_line(line1, generator, remaining, previous, candidates) do
+  # {base prompt, retry-prompt builder} for the AI line at the given position.
+  defp prompt_builders(run, _transcript, 0) do
+    topic = run.topic || ""
+    {first_line_prompt(topic), &first_line_retry_prompt(topic, &1, &2)}
+  end
+
+  defp prompt_builders(_run, transcript, 1) do
+    line1 = line_text(transcript, 0)
+    {second_line_prompt(line1), &second_line_retry_prompt(line1, &1, &2)}
+  end
+
+  defp prompt_builders(_run, transcript, 2) do
+    line1 = line_text(transcript, 0)
+    line2 = line_text(transcript, 1)
+    {third_line_prompt(line1, line2), &third_line_retry_prompt(line1, line2, &1, &2)}
+  end
+
+  defp attempt_line({base, retry} = prompts, target, generator, remaining, previous, candidates) do
     prompt =
       case previous do
-        nil -> second_line_prompt(line1)
-        {bad_line, count} -> second_line_retry_prompt(line1, bad_line, count)
+        nil -> base
+        {bad_line, count} -> retry.(bad_line, count)
       end
 
     line = generator |> invoke_generator(prompt) |> strip_line()
@@ -89,30 +123,30 @@ defmodule OwnershipAshChat.Study.PingPong do
     candidates = candidates ++ [line]
 
     cond do
-      count == @target_syllables ->
+      count == target ->
         {:ok, line}
 
       remaining <= 1 ->
         Logger.warning(
-          "PingPong: no valid 7-syllable line for #{inspect(line1)} after " <>
-            "#{length(candidates)} attempts; using closest candidate #{inspect(closest_candidate(candidates))}. " <>
-            "Tried: #{inspect(candidates)}"
+          "PingPong: no valid #{target}-syllable line after " <>
+            "#{length(candidates)} attempts; using closest candidate " <>
+            "#{inspect(closest_candidate(candidates, target))}. Tried: #{inspect(candidates)}"
         )
 
-        {:fallback, closest_candidate(candidates), candidates}
+        {:fallback, closest_candidate(candidates, target), candidates}
 
       true ->
         Logger.debug(
-          "PingPong retry: line #{inspect(line)} has #{count} syllables (target 7); " <>
+          "PingPong retry: line #{inspect(line)} has #{count} syllables (target #{target}); " <>
             "re-prompting, #{remaining - 1} attempt(s) left"
         )
 
-        attempt_line(line1, generator, remaining - 1, {line, count}, candidates)
+        attempt_line(prompts, target, generator, remaining - 1, {line, count}, candidates)
     end
   end
 
-  defp closest_candidate(candidates) do
-    Enum.min_by(candidates, fn line -> abs(Syllables.count(line) - @target_syllables) end)
+  defp closest_candidate(candidates, target) do
+    Enum.min_by(candidates, fn line -> abs(Syllables.count(line) - target) end)
   end
 
   defp line_generator(opts) do
@@ -172,8 +206,8 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   # FIXME: no syllable validation/retry here — the modified haiku can drift from 5-7-5.
-  # Apply the same validate-and-reprompt loop used for the second line
-  # (`attempt_line/5` + `Syllables.count/1`), checking each of the 3 lines and
+  # Apply the same validate-and-reprompt loop used for the generated lines
+  # (`attempt_line/6` + `Syllables.count/1`), checking each of the 3 lines and
   # surfacing a fallback when the model won't converge.
   @doc """
   Call the LLM to produce a variant-modified copy of a German haiku.
@@ -229,12 +263,55 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
-  The literal prompt asking the model for the second haiku line, given line 1.
+  Prompt asking the model for the opening haiku line (5 syllables) on the assigned
+  topic. Used as the AI's first turn in `:assigned && :with_ai` runs.
+  """
+  def first_line_prompt(topic) do
+    """
+    Generate the first line of a German haiku on the topic „#{topic}“.
 
-  TODO: this deliberately follows the study's literal prompt and does NOT pass the
-  run's `topic` to the model — line 1 (written by the human to the topic) is the
-  only topic signal. For `:assigned` runs the AI line could drift; injecting
-  `"Thema: \#{run.topic}"` here would tie it back to the assigned topic.
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 5 syllables.
+    - NEVER return a line with more or fewer than 5 syllables.
+    - Before answering, split every word into syllables and count them.
+    - Return only the first line.
+    """
+  end
+
+  @doc """
+  Corrective first-line prompt used after a rejected attempt: it names the rejected
+  line and its measured syllable count so the model gets concrete feedback instead
+  of re-rolling blind.
+  """
+  def first_line_retry_prompt(topic, rejected_line, count) do
+    """
+    Generate the first line of a German haiku on the topic „#{topic}“.
+
+    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
+    have EXACTLY 5 syllables. Write a DIFFERENT first line.
+
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 5 syllables.
+    - Before answering, split every word into syllables and count them.
+    - Return only the first line.
+    """
+  end
+
+  @doc """
+  The literal prompt asking the model for the second haiku line (7 syllables),
+  given line 1. Used as the AI's turn in `:free && :with_ai` runs, where line 1
+  (written by the human) is the only topic signal — by design, `:free` runs have
+  no explicit topic.
   """
   def second_line_prompt(line1) do
     """
@@ -283,6 +360,63 @@ defmodule OwnershipAshChat.Study.PingPong do
     """
   end
 
+  @doc """
+  Prompt asking the model for the closing haiku line (5 syllables), given lines 1
+  and 2. Used as the AI's final turn in `:assigned && :with_ai` runs.
+  """
+  def third_line_prompt(line1, line2) do
+    """
+    Generate the third line of a German haiku.
+
+    First line:
+    „#{line1}“
+
+    Second line:
+    „#{line2}“
+
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 5 syllables.
+    - NEVER return a line with more or fewer than 5 syllables.
+    - Before answering, split every word into syllables and count them.
+    - Return only the third line.
+    """
+  end
+
+  @doc """
+  Corrective third-line prompt used after a rejected attempt: it names the rejected
+  line and its measured syllable count so the model gets concrete feedback instead
+  of re-rolling blind.
+  """
+  def third_line_retry_prompt(line1, line2, rejected_line, count) do
+    """
+    Generate the third line of a German haiku.
+
+    First line:
+    „#{line1}“
+
+    Second line:
+    „#{line2}“
+
+    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
+    have EXACTLY 5 syllables. Write a DIFFERENT third line.
+
+    Constraints:
+    - Output exactly one line.
+    - Output language: German.
+    - Do not add quotation marks.
+    - Do not add explanations.
+    - Do not add any text before or after the line.
+    - The line must contain EXACTLY 5 syllables.
+    - Before answering, split every word into syllables and count them.
+    - Return only the third line.
+    """
+  end
+
   defp system_message do
     case LLM.system_preamble() do
       preamble when is_binary(preamble) and preamble != "" -> Context.system(preamble)
@@ -302,17 +436,9 @@ defmodule OwnershipAshChat.Study.PingPong do
   # Strip overall whitespace from a 3-line haiku response.
   defp strip_haiku(text), do: String.trim(text)
 
-  defp last_user_text(transcript) do
-    transcript
-    |> Enum.reverse()
-    |> Enum.find_value("", fn passage ->
-      if role(passage) == "user", do: text(passage)
-    end)
+  defp line_text(transcript, index) do
+    transcript |> Enum.at(index) |> text()
   end
-
-  defp role(%{"role" => role}), do: role
-  defp role(%{role: role}), do: to_string(role)
-  defp role(_), do: "user"
 
   defp text(%{"text" => text}), do: to_string(text)
   defp text(%{text: text}), do: to_string(text)

@@ -6,7 +6,7 @@ This is a web application written using the Phoenix web framework.
   all changes are made and fix every issue it reports before considering the work done — never
   treat a change as complete on the strength of piecemeal checks alone. Individual steps
   (`mix compile`, `mix format <file>`, a single `mix test <file>`) **may** be used freely
-  *during* development for debugging or fast feedback, but they do **not** substitute for the
+  _during_ development for debugging or fast feedback, but they do **not** substitute for the
   final `mix precommit` run; the alias exists so nothing (format, warnings-as-errors, tests)
   is skipped at the end.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
@@ -22,7 +22,7 @@ This is a web application written using the Phoenix web framework.
 - Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
 - **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available. `<.input>` is imported and using it will save steps and prevent errors
 - If you override the default input classes (`<.input class="myclass px-2 py-1 rounded-lg">)`) class with your own values, no default classes are inherited, so your
-custom classes must fully style the input
+  custom classes must fully style the input
 
 ### JS and CSS guidelines
 
@@ -49,7 +49,6 @@ custom classes must fully style the input
 - Ensure **clean typography, spacing, and layout balance** for a refined, premium look
 - Focus on **delightful details** like hover effects, loading states, and smooth page transitions
 
-
 # Project Description: Haiku Study
 
 > This file describes the conceptual idea behind the project so it can serve as a
@@ -62,7 +61,8 @@ The project is a tool for a **research study** in which participants (subjects)
 **write haikus**. It investigates the effect of two factors on the writing experience and
 the result:
 
-1. **Topic prompt** – with a given topic vs. without a topic (free choice)
+1. **Topic prompt** – with a given topic vs. without a topic (the participant's first
+   line sets the topic implicitly)
 2. **AI assistance** – with AI (ping-pong mode) vs. without AI (writing alone)
 
 After each run, participants rate their experience/result on a **Likert scale**
@@ -75,8 +75,10 @@ After each run, participants rate their experience/result on a **Likert scale**
 The study has two crossed binary factors → **4 writing runs** per participant, plus a
 fifth modification run.
 
-- **`topic_source`** (the "condition") — `:assigned` (a topic is given) | `:free` (the
-  participant chooses the topic)
+- **`topic_source`** (the "condition") — `:assigned` (the fixed topic **"Jahreszeiten"**
+  is shown; developer-configurable via `config :ownership_ash_chat, :study_assigned_topic`)
+  | `:free` (no topic step — the participant's first haiku line sets the topic implicitly;
+  `run.topic` stays empty)
 - **`ai_mode`** (with/without AI) — `:with_ai` (ping-pong with chatbot) | `:without_ai`
   (participant writes alone)
 
@@ -100,8 +102,23 @@ Each run ends with a **Likert survey**.
 
 ### Ping-pong mode (with AI)
 
-Alternating writing: one passage from the user, one passage from the AI, one passage from
-the user, and so on. A haiku is created jointly, turn by turn.
+Alternating writing, one haiku line per turn (3 lines total, 5-7-5). Who starts depends
+on `topic_source`:
+
+- **`:free && :with_ai`** — `[user, AI, user]`. No topic exists; the user's first line
+  sets it implicitly.
+  1. user writes line 1
+  2. AI generates line 2 from line 1 (**7 syllables**)
+  3. user writes line 3
+- **`:assigned && :with_ai`** — `[AI, user, AI]`. The assigned topic feeds the AI's
+  opening prompt.
+  1. AI generates line 1 from the topic (**5 syllables**) — shown before any input
+  2. user writes line 2
+  3. AI generates line 3 from lines 1+2 (**5 syllables**)
+
+A run ends (auto-completes, `final_haiku` assembled) once it holds 3 lines. AI lines are
+syllable-validated with a retry loop (`Study.PingPong` + `Study.Syllables`); user input
+is **never** syllable-validated.
 
 ### Fifth run (modification)
 
@@ -143,8 +160,9 @@ An additional, **fifth run** builds on the results:
 1. Entry via `/start?case_id=…`.
 2. Four runs in nested-block order (both `ai_mode` values of one `topic_source`, then the
    next `topic_source` — see Study Design):
-   - optional topic display / topic choice (depending on `topic_source`),
-   - writing phase (alone or ping-pong with chatbot, depending on `ai_mode`),
+   - topic display for `:assigned` (fixed "Jahreszeiten"); no topic step for `:free`,
+   - writing phase (alone or ping-pong with chatbot, depending on `ai_mode`; see
+     Ping-pong mode for who starts),
    - Likert survey.
 3. Fifth run: modification on the best haiku (random variant 5a/5b/5c) + Likert.
 4. Display of the **UUID** (run/session ID) to return to the originating tool.
@@ -174,7 +192,8 @@ attribute names (snake_case); exported JSON keys mirror them.
 - `kind` – `:writing | :modification`
 - `topic_source` – `:assigned | :free`
 - `ai_mode` – `:with_ai | :without_ai`
-- `topic` – the actual topic text (the assigned one, or the participant's chosen one)
+- `topic` – the assigned topic text ("Jahreszeiten"); empty for `:free` runs (the topic
+  is implicit in the first line)
 - `transcript` – the messages (user + AI), in order
 - `final_haiku` – the finished haiku (separate from the transcript, for easy analysis)
 - `likert` – questionnaire answers (all items positively coded)
@@ -230,101 +249,16 @@ code from memory, stop and redo it against the references.
 
 ## Implementation plan (lean, in order)
 
-Build dependencies first. Critical path: 1 → 3 → 4 → 5 → 6 → 7. Step 2 can run in parallel
-after 1; step 8 any time after 1.
-
-1. ~~**Domain + persistence** (foundation) — a `Study` domain (or extend `Chat`); enums
-   `topic_source`, `ai_mode`, `run_kind`, `variant`; `session` and `run` resources
-   (AshPostgres, `has_many`/`belongs_to`); `mix ash.codegen` → migration.~~ ✅ **Done** —
-   `OwnershipAshChat.Study` domain, `Types.{TopicSource,AiMode,RunKind,Variant,SessionStatus}`,
-   `Session has_many Run` (FK cascade), migration + tests (`Ash.Generator`).
-2. ~~**`case_id` entry** (replaces auth) — route `/start?case_id=…`; action that resolves
-   the `case_id` and creates a `session` (`:in_progress`); reject invalid (blank)
-   `case_id`.~~ ✅ **Done** — `Session.start` upsert action (resumes on re-entry via
-   `unique_case_id` identity), `Study.start_session` code interface,
-   `StartController` (`/start` → session cookie → `/study` flow), tests.
-3. ~~**Randomization** — on session create, draw `topic_source_order` and the `ai_mode` order
-   per block; create the 4 `kind: :writing` runs with their `run_index`.~~ ✅ **Done** —
-   `Study.Randomization.draw_writing_plan/0` (pure: nested block draw, one of 8 sequences);
-   `Session.Changes.SeedRuns` forces `topic_source_order` + `started_at` and seeds the 4
-   `:writing` runs in an `after_action` hook, wired into the `:start` action. Guarded so an
-   upsert resume never re-seeds (idempotent, open question #8). Session-driven flow at
-   `/study` (`StudySessionLive`) walks the runs, **Weiter** button advances on completion;
-   shared `run_panel/1` component; one-click dev entry `/dev/study/new`. Tests:
-   `randomization_test.exs`, `study_test.exs` (seed + idempotency), `study_session_live_test.exs`.
-4. ~~**Writing flow** (core) — `:without_ai` plain input; `:with_ai` ping-pong reusing the
-   existing chat/`Respond`; capture `topic`, `transcript`, `final_haiku` per run.~~ ✅
-   **Done** — `Study.{set_run_topic,add_user_passage}` actions persist `topic` /
-   `transcript` (embedded `%{"role","text"}` passages); `final_haiku` is auto-assembled
-   on completion (see 4b). `Study.PingPong` generates the AI passage via central `LLM` +
-   `ReqLLM` (injectable responder for tests); dev harness `StudyWritingLive`
-   (`/dev/study/run/:run_id`) walks it end to end. Follow-ups 4a/4b done below.
-
-   4a. ~~**Line-specific ping-pong prompt**~~ ✅ **Done** — `PingPong.second_line_prompt/1`
-   builds the literal prompt below (system = global preamble, user = the prompt) and
-   `generate_passage/2` strips stray quotes/whitespace. Topic intentionally NOT injected
-   (literal spec); TODO in the module notes injecting it for `:assigned` runs. The AI
-   passage is a concrete haiku line under hard constraints (exactly one line, 7 syllables,
-   German, no quotes/explanations/surrounding text) — the **second line**, given the
-   human's first line:
-
-       Generate the second line of a German haiku.
-       First line:
-       „[LINE1]“
-       Constraints:
-       „Output exactly one line.“
-       „The line must contain 7 syllables.“
-       „Output language: German.“
-       „Do not add quotation marks.“
-       „Do not add explanations.“
-       „Do not add any text before or after the line.“
-       Return only the second line.
-
-   4b. ~~**Auto-end after 3 lines**~~ ✅ **Done** — runs hold exactly `PingPong.lines()`
-   (3, config `:ping_pong_lines`) lines: `:with_ai` = `[human, LLM, human]` (AI takes only
-   line 2), `:without_ai` = three human lines. `Run.Changes.AddPassage` generates the AI
-   line only after the first human passage and, on reaching the limit, auto-completes the
-   run — assembling `final_haiku` from the transcript (joined by `\n`, **never** entered by
-   the user) and stamping `completed_at`. Replaced the old `ping_pong_rounds` user-count
-   rule; the standalone `set_final_haiku` action was removed.
-5. ~~**Likert** — questionnaire at each run's end → store `likert` (items positively
-   coded).~~ ✅ **Done** — `OwnershipAshChat.Study.Likert` is the single source of truth for
-   items + scale (3 placeholder items, 5-point scale `1..5`; final items are open question
-   #5). `Run.submit_likert` (`accept [:likert]`) stores the answer map, validated by
-   `Run.Validations.LikertAnswers` (exactly the expected keys, every value within the
-   scale); code interface `Study.submit_likert`. Stored as string-keyed integers, e.g.
-   `%{"zufriedenheit" => 5}`, mirroring `transcript`. Surfaced in the dev harness
-   `StudyWritingLive` (`/dev/study/run/:run_id`): the questionnaire appears once the run has
-   auto-completed (`completed_at` set), submits, then shows the saved answers read-only.
-6. ~~**Fifth run** — pick best run (highest Likert average); draw `variant :a/:b/:c`; chatbot
-   modifies the haiku; ask Likert again.~~ ✅ **Done** — `Randomization.best_run/1` picks
-   the writing run with the highest Likert average (random tie-break; flashes `"picked
-   randomly"` in the frontend). `PingPong.respond_modification/3` calls the LLM with a
-   variant-specific prompt (`modification_prompt/2`; injectable responder for tests via
-   `:study_modification_responder` app env). `StudySessionLive` creates the `kind:
-   :modification` run (fields `variant`, `source_run_index`, `original_haiku`,
-   `modified_haiku`, `completed_at` set at creation) on the explicit "Weiter" click after
-   the transition card — never on mount, so reloads do not trigger a second LLM call.
-   `StudyComponents.modification_panel/1` shows both haiku versions + variant label.
-7. ~~**End screen** — show `session_id` (UUID) for return to the originating tool; mark
-   session `:completed`.~~ ✅ **Done** — `Session :complete` action (+ `Study.complete_session!/1`
-   code interface) sets `status: :completed` and stamps `completed_at`. Called in
-   `StudySessionLive.advance_run` after the modification run's Likert is submitted. The
-   `:all_done` render branch shows the session UUID in a selectable mono block.
-8. ~~**Export** — read action loading `session` + `runs`, serialized to JSON.~~ ✅ **Done**
+Nothing new, yet.
 
 ## Open questions (to clarify before implementation)
 
-1. ~~**"Best" run for run 5**: highest Likert average, all items positively coded (clarified).
-   Open only: **tie-break** on equal scores (e.g. random, or a preferred
-   `topic_source`/`ai_mode`).~~ **Resolved** — tie-break is random; frontend flashes
-   `"picked randomly"` when multiple runs share the max average.
-2. ~~**Modification variant distribution**: are `:a/:b/:c` drawn uniformly at random, or
-   balanced (e.g. against the best run's `topic_source`/`ai_mode`)?~~ **Resolved** —
-   drawn uniformly at random (`Enum.random([:a, :b, :c])`).
-
-3. **Topic prompt**: Fixed topic pool, drawn at random, or configured per study?
-4. **Ping-pong**: Fixed number of rounds? Who starts (user or AI)? When does a run end?
+3. **Topic prompt**: resolved — fixed topic **"Jahreszeiten"** for all `:assigned` runs,
+   developer-configurable via `config :ownership_ash_chat, :study_assigned_topic`. `:free`
+   runs have no topic (implicit in the first line).
+4. **Ping-pong**: resolved — 3 lines per run (one per turn, 5-7-5), run auto-completes
+   after the third line. Who starts depends on `topic_source` (see Ping-pong mode:
+   `:free` → user starts, `:assigned` → AI starts and closes).
 5. **Likert questionnaire**: Which concrete items, which scale (e.g. 5- or 7-point)? Same
    items across all five runs?
 6. **`case_id` security**: lean first pass treats the link value as the `case_id` verbatim
@@ -338,7 +272,6 @@ after 1; step 8 any time after 1.
    `unique_case_id` identity), so reloads/back-navigation don't strand the participant.
 9. **UI/chatbot language**: German? English? (Haiku instructions and system prompt
    accordingly.)
-
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

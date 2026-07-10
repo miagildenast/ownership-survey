@@ -2,7 +2,9 @@ defmodule OwnershipAshChat.Study.Session.Changes.SeedRuns do
   @moduledoc """
   Seeds the four `kind: :writing` runs for a freshly started session (AGENTS.md plan
   step #3): draws the nested block randomization, persists `topic_source_order`, and
-  creates the runs in an `after_action` hook (same transaction).
+  creates the runs in an `after_action` hook (same transaction). `:assigned` runs are
+  seeded with the fixed study topic (`Randomization.assigned_topic/0`); `:free` runs
+  get no topic — the participant's first line sets it implicitly.
 
   Idempotent with the `:start` upsert. On a **fresh insert** the forced attributes
   persist and the session has no runs yet → 4 runs created. On a **resume** (same

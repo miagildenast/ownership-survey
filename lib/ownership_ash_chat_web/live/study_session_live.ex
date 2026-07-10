@@ -32,17 +32,12 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
         socket
         |> assign(:study, study)
         |> assign(:total_runs, length(writing_runs(study)))
-        |> assign_run(find_current_run(study))
+        |> assign_run(study |> find_current_run() |> begin_run())
         |> then(&{:ok, &1})
     end
   end
 
   @impl true
-  def handle_event("set_topic", %{"topic" => topic}, socket) do
-    run = Study.set_run_topic!(socket.assigns.run, %{topic: topic})
-    {:noreply, assign_run(socket, run)}
-  end
-
   def handle_event("add_passage", %{"text" => text}, socket) do
     # Keep the active run pinned after it completes (so the haiku + questionnaire
     # show); advancing to the next run only happens on the explicit "next_run" click.
@@ -73,7 +68,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   defp advance_run(socket, study) do
     case Enum.find(writing_runs(study), &run_unfinished?/1) do
       run when not is_nil(run) ->
-        assign_run(socket, run)
+        assign_run(socket, begin_run(run))
 
       nil ->
         case modification_run(study) do
@@ -121,6 +116,12 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   # ---------------------------------------------------------------------------
   # Run/step helpers
   # ---------------------------------------------------------------------------
+
+  # Mark a freshly presented writing run as started; for :assigned/:with_ai runs this
+  # also generates the AI's opening line (blocking LLM call, same pattern as the
+  # modification run — the triggering button shows a phx-disable-with wait state).
+  defp begin_run(%{kind: :writing, started_at: nil} = run), do: Study.begin_run!(run)
+  defp begin_run(run), do: run
 
   defp assign_run(socket, run) do
     study = socket.assigns.study
@@ -258,7 +259,9 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
             class="flex justify-end"
             phx-mounted={JS.focus(to: "#weiter-btn")}
           >
-            <.button id="weiter-btn" phx-click="next_run">Weiter</.button>
+            <.button id="weiter-btn" phx-click="next_run" phx-disable-with="Bitte warten…">
+              Weiter
+            </.button>
           </div>
         <% end %>
       </div>

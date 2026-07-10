@@ -4,7 +4,7 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   single run, without token entry (#2) or run randomization (#3).
 
   Mounted at `/dev/study/run/:run_id` behind the `:dev_routes` compile flag. Not the
-  participant entry point — it just drives `set_topic` / `add_user_passage` so the flow
+  participant entry point — it just drives `begin_run` / `add_user_passage` so the flow
   can be walked end to end. The run auto-completes after three lines and assembles its
   own `final_haiku`; there is no manual final-haiku entry.
   """
@@ -17,15 +17,15 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
 
   @impl true
   def mount(%{"run_id" => run_id}, _session, socket) do
-    {:ok, assign_run(socket, Study.get_run!(run_id))}
+    {:ok, assign_run(socket, run_id |> Study.get_run!() |> begin_run())}
   end
+
+  # Stamp started_at and (for :assigned/:with_ai) generate the AI's opening line
+  # before the run is first shown.
+  defp begin_run(%{kind: :writing, started_at: nil} = run), do: Study.begin_run!(run)
+  defp begin_run(run), do: run
 
   @impl true
-  def handle_event("set_topic", %{"topic" => topic}, socket) do
-    run = Study.set_run_topic!(socket.assigns.run, %{topic: topic})
-    {:noreply, assign_run(socket, run)}
-  end
-
   def handle_event("add_passage", %{"text" => text}, socket) do
     run = Study.add_user_passage!(socket.assigns.run, text)
     {:noreply, assign_run(socket, run)}

@@ -3,6 +3,29 @@ defmodule OwnershipAshChat.Study.PingPongTest do
 
   alias OwnershipAshChat.Study.PingPong
 
+  describe "first_line_prompt/1" do
+    test "asks for the first German haiku line (5 syllables) on the topic" do
+      prompt = PingPong.first_line_prompt("Jahreszeiten")
+
+      assert prompt =~ "Generate the first line of a German haiku"
+      assert prompt =~ "„Jahreszeiten“"
+      assert prompt =~ "The line must contain EXACTLY 5 syllables."
+      assert prompt =~ "Output language: German."
+      assert prompt =~ "Return only the first line."
+    end
+  end
+
+  describe "first_line_retry_prompt/3" do
+    test "names the rejected line and its measured syllable count" do
+      prompt = PingPong.first_line_retry_prompt("Jahreszeiten", "viel zu lange Zeile", 7)
+
+      assert prompt =~ "„Jahreszeiten“"
+      assert prompt =~ "„viel zu lange Zeile“"
+      assert prompt =~ "had 7 syllables"
+      assert prompt =~ "EXACTLY 5 syllables"
+    end
+  end
+
   describe "second_line_prompt/1" do
     test "asks for the second German haiku line and embeds line 1" do
       prompt = PingPong.second_line_prompt("Stille am Teich")
@@ -29,6 +52,88 @@ defmodule OwnershipAshChat.Study.PingPongTest do
       assert prompt =~ "„viel zu lange Zeile hier“"
       assert prompt =~ "had 9 syllables"
       assert prompt =~ "EXACTLY 7 syllables"
+    end
+  end
+
+  describe "third_line_prompt/2" do
+    test "asks for the third German haiku line (5 syllables) given lines 1 and 2" do
+      prompt = PingPong.third_line_prompt("Stille am Teich", "Frösche springen ins Wasser")
+
+      assert prompt =~ "Generate the third line of a German haiku."
+      assert prompt =~ "„Stille am Teich“"
+      assert prompt =~ "„Frösche springen ins Wasser“"
+      assert prompt =~ "The line must contain EXACTLY 5 syllables."
+      assert prompt =~ "Return only the third line."
+    end
+  end
+
+  describe "third_line_retry_prompt/4" do
+    test "names the rejected line and its measured syllable count" do
+      prompt =
+        PingPong.third_line_retry_prompt("Alte Eiche", "zweite Zeile", "viel zu lange Zeile", 7)
+
+      assert prompt =~ "„Alte Eiche“"
+      assert prompt =~ "„zweite Zeile“"
+      assert prompt =~ "„viel zu lange Zeile“"
+      assert prompt =~ "had 7 syllables"
+      assert prompt =~ "EXACTLY 5 syllables"
+    end
+  end
+
+  describe "generate_passage/2 line positions" do
+    test "empty transcript: asks for the first line from the topic, 5-syllable target" do
+      run = %{transcript: [], topic: "Jahreszeiten"}
+
+      generator = fn prompt ->
+        send(self(), {:prompt, prompt})
+        "Stille an dem Teich"
+      end
+
+      assert {:ok, "Stille an dem Teich"} =
+               PingPong.generate_passage(run, line_generator: generator)
+
+      assert_received {:prompt, prompt}
+      assert prompt =~ "Generate the first line of a German haiku"
+      assert prompt =~ "„Jahreszeiten“"
+      assert prompt =~ "EXACTLY 5 syllables"
+    end
+
+    test "first line rejected: retries against the 5-syllable target" do
+      run = %{transcript: [], topic: "Jahreszeiten"}
+
+      generator = fn prompt ->
+        # base prompt → 7 syllables (invalid); retry prompt → 5 syllables (valid)
+        if prompt =~ "previous attempt",
+          do: "Stille an dem Teich",
+          else: "Frösche springen ins Wasser"
+      end
+
+      assert {:ok, "Stille an dem Teich"} =
+               PingPong.generate_passage(run, line_generator: generator)
+    end
+
+    test "two lines present: asks for the third line, 5-syllable target" do
+      run = %{
+        transcript: [
+          %{"role" => "ai", "text" => "Stille an dem Teich"},
+          %{"role" => "user", "text" => "Frösche springen ins Wasser"}
+        ],
+        topic: "Jahreszeiten"
+      }
+
+      generator = fn prompt ->
+        send(self(), {:prompt, prompt})
+        "Wasser klingt noch nach"
+      end
+
+      assert {:ok, "Wasser klingt noch nach"} =
+               PingPong.generate_passage(run, line_generator: generator)
+
+      assert_received {:prompt, prompt}
+      assert prompt =~ "Generate the third line of a German haiku."
+      assert prompt =~ "„Stille an dem Teich“"
+      assert prompt =~ "„Frösche springen ins Wasser“"
+      assert prompt =~ "EXACTLY 5 syllables"
     end
   end
 

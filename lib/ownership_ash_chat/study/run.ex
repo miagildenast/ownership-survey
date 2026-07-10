@@ -18,16 +18,17 @@ defmodule OwnershipAshChat.Study.Run do
   actions do
     defaults [:read, :destroy]
 
-    # Set/seed the run's topic (participant's choice for :free, the assigned one for
-    # :assigned) and stamp the run as started.
-    update :set_topic do
-      accept [:topic]
-      change set_attribute(:started_at, &DateTime.utc_now/0)
+    # Mark the run as started when it first becomes active: stamps started_at and,
+    # for :assigned/:with_ai runs, generates the AI's opening line. Idempotent.
+    # Non-atomic: reads the current record and may call the LLM.
+    update :begin_run do
+      require_atomic? false
+      change OwnershipAshChat.Study.Run.Changes.BeginRun
     end
 
-    # Append one user passage. For :with_ai runs still within the round limit, the
-    # AI's reply is generated and appended too (ping-pong). Non-atomic: reads the
-    # current transcript and may call the LLM.
+    # Append one user passage. Pending AI turns around it are generated and appended
+    # too (ping-pong; which lines are AI turns depends on the condition). Non-atomic:
+    # reads the current transcript and may call the LLM.
     update :add_user_passage do
       require_atomic? false
       argument :text, :string, allow_nil?: false

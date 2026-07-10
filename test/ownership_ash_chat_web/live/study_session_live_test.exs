@@ -6,17 +6,30 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
 
   alias OwnershipAshChat.Study
 
-  # Build a session with two deterministic :without_ai writing runs and stash its id in
-  # the session cookie, as StartController / the dev entry would.
+  # Build a session with a deterministic :without_ai run followed by an
+  # :assigned/:with_ai run, and stash its id in the session cookie, as
+  # StartController / the dev entry would.
   defp session_conn(conn) do
     session = generate(session())
 
     generate(
-      run(session_id: session.id, run_index: 1, topic_source: :assigned, ai_mode: :without_ai)
+      run(
+        session_id: session.id,
+        run_index: 1,
+        topic_source: :assigned,
+        ai_mode: :without_ai,
+        topic: "Jahreszeiten"
+      )
     )
 
     generate(
-      run(session_id: session.id, run_index: 2, topic_source: :assigned, ai_mode: :without_ai)
+      run(
+        session_id: session.id,
+        run_index: 2,
+        topic_source: :assigned,
+        ai_mode: :with_ai,
+        topic: "Jahreszeiten"
+      )
     )
 
     conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
@@ -35,6 +48,8 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/study")
     assert html =~ "Run 1 von 2"
+    # The assigned topic is displayed.
+    assert html =~ "Jahreszeiten"
 
     # Complete run 1 (three human lines → auto-completes).
     for line <- ["alter Teich", "Frosch springt hinein", "Wasserklang"] do
@@ -58,9 +73,19 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
 
     assert render(view) =~ "Weiter"
 
-    # Advance to run 2.
+    # Advance to run 2 (:assigned/:with_ai): the AI's opening line is generated on
+    # entry and shown before any input.
     view |> element("button", "Weiter") |> render_click()
-    assert render(view) =~ "Run 2 von 2"
+    rendered = render(view)
+    assert rendered =~ "Run 2 von 2"
+    assert rendered =~ OwnershipAshChat.Study.PingPongStub.text()
+
+    # One human line (line 2) completes the run — the AI closes with line 3.
+    view
+    |> form("form[phx-submit=add_passage]", %{"text" => "Frosch springt hinein"})
+    |> render_submit()
+
+    assert render(view) =~ "Fragebogen"
   end
 
   test "shows pre_modification transition card after all writing runs complete", %{conn: conn} do

@@ -9,20 +9,35 @@ defmodule OwnershipAshChat.Study.Randomization do
        `ai_mode`s of a block are presented back-to-back before switching block.
 
   This yields one of the 8 valid sequences (2 `topic_source` orders × 2 `ai_mode`
-  orders per block). Pure — the only effect is `Enum.shuffle/1`; seed `:rand` in tests
-  for determinism if needed.
+  orders per block). Pure apart from `Enum.shuffle/1` and reading the configured
+  assigned topic; seed `:rand` in tests for determinism if needed.
+
+  `:assigned` runs are seeded with the fixed study topic (`assigned_topic/0`);
+  `:free` runs carry no topic — the participant's first line sets it implicitly.
   """
 
   @topic_sources [:assigned, :free]
   @ai_modes [:with_ai, :without_ai]
+  @default_assigned_topic "Jahreszeiten"
 
   @typedoc "One writing run's cell: the attrs needed to create a `kind: :writing` run."
   @type run_spec :: %{
           run_index: pos_integer(),
           kind: :writing,
           topic_source: :assigned | :free,
-          ai_mode: :with_ai | :without_ai
+          ai_mode: :with_ai | :without_ai,
+          topic: String.t() | nil
         }
+
+  @doc """
+  The fixed topic every `:assigned` run gets. Developer-configurable via
+
+      config :ownership_ash_chat, :study_assigned_topic, "Jahreszeiten"
+  """
+  @spec assigned_topic() :: String.t()
+  def assigned_topic do
+    Application.get_env(:ownership_ash_chat, :study_assigned_topic, @default_assigned_topic)
+  end
 
   @doc """
   Picks the "best" writing run for the modification step (plan step #6).
@@ -68,7 +83,8 @@ defmodule OwnershipAshChat.Study.Randomization do
           run_index: run_index,
           kind: :writing,
           topic_source: topic_source,
-          ai_mode: ai_mode
+          ai_mode: ai_mode,
+          topic: if(topic_source == :assigned, do: assigned_topic())
         }
       end)
 

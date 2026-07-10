@@ -63,6 +63,14 @@ defmodule OwnershipAshChat.StudyTest do
       assert r3.topic_source == r4.topic_source
       assert Enum.sort([r1.ai_mode, r2.ai_mode]) == [:with_ai, :without_ai]
       assert Enum.sort([r3.ai_mode, r4.ai_mode]) == [:with_ai, :without_ai]
+
+      # :assigned runs carry the fixed study topic; :free runs stay topic-less.
+      for run <- runs do
+        case run.topic_source do
+          :assigned -> assert run.topic == "Jahreszeiten"
+          :free -> assert is_nil(run.topic)
+        end
+      end
     end
 
     test "re-entry does not duplicate runs (idempotent seed)" do
@@ -138,15 +146,43 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
-  describe "set_run_topic/2" do
-    test "sets the topic and stamps started_at" do
-      run = generate(run(topic_source: :free))
+  describe "begin_run/1" do
+    test "stamps started_at" do
+      run = generate(run(topic_source: :free, ai_mode: :without_ai))
       assert is_nil(run.started_at)
 
-      updated = Study.set_run_topic!(run, %{topic: "Herbst"})
+      updated = Study.begin_run!(run)
 
-      assert updated.topic == "Herbst"
       refute is_nil(updated.started_at)
+      assert updated.transcript == []
+    end
+
+    test "assigned/with_ai opens with the AI's first line" do
+      run = generate(run(topic_source: :assigned, ai_mode: :with_ai, topic: "Jahreszeiten"))
+
+      updated = Study.begin_run!(run)
+
+      assert [%{"role" => "ai", "text" => ai_text}] = updated.transcript
+      assert ai_text == OwnershipAshChat.Study.PingPongStub.text()
+      refute is_nil(updated.started_at)
+    end
+
+    test "is idempotent: re-invoking does not add another opener or move started_at" do
+      run = generate(run(topic_source: :assigned, ai_mode: :with_ai, topic: "Jahreszeiten"))
+
+      begun = Study.begin_run!(run)
+      again = Study.begin_run!(begun)
+
+      assert length(again.transcript) == 1
+      assert again.started_at == begun.started_at
+    end
+
+    test "free/with_ai gets no opener — the participant writes first" do
+      run = generate(run(topic_source: :free, ai_mode: :with_ai))
+
+      updated = Study.begin_run!(run)
+
+      assert updated.transcript == []
     end
   end
 
@@ -198,10 +234,10 @@ defmodule OwnershipAshChat.StudyTest do
       assert ai_passage["candidates"] == ["Kurze Zeile", "Andere Zeile"]
     end
 
-    test "with_ai run is three lines [human, AI, human], then auto-completes" do
+    test "free/with_ai run is three lines [human, AI, human], then auto-completes" do
       ai = OwnershipAshChat.Study.PingPongStub.text()
 
-      run = generate(run(ai_mode: :with_ai))
+      run = generate(run(topic_source: :free, ai_mode: :with_ai))
 
       # Line 1 (human) triggers the AI's line 2; run not yet complete.
       run = Study.add_user_passage!(run, "Stille am Teich")
@@ -218,6 +254,38 @@ defmodule OwnershipAshChat.StudyTest do
              ] = run.transcript
 
       assert run.final_haiku == "Stille am Teich\n#{ai}\nFrosch springt hinein"
+      refute is_nil(run.completed_at)
+    end
+
+    test "assigned/with_ai run is [AI, human, AI]: one human line completes it" do
+      ai = OwnershipAshChat.Study.PingPongStub.text()
+
+      run =
+        generate(run(topic_source: :assigned, ai_mode: :with_ai, topic: "Jahreszeiten"))
+        |> Study.begin_run!()
+
+      run = Study.add_user_passage!(run, "Frosch springt hinein")
+
+      assert [
+               %{"role" => "ai", "text" => ^ai},
+               %{"role" => "user", "text" => "Frosch springt hinein"},
+               %{"role" => "ai", "text" => ^ai}
+             ] = run.transcript
+
+      assert run.final_haiku == "#{ai}\nFrosch springt hinein\n#{ai}"
+      refute is_nil(run.completed_at)
+    end
+
+    test "assigned/with_ai fills a missing opener defensively on the first user passage" do
+      ai = OwnershipAshChat.Study.PingPongStub.text()
+
+      # No begin_run — the opener is missing when the user submits.
+      run = generate(run(topic_source: :assigned, ai_mode: :with_ai, topic: "Jahreszeiten"))
+
+      run = Study.add_user_passage!(run, "Frosch springt hinein")
+
+      assert Enum.map(run.transcript, & &1["role"]) == ["ai", "user", "ai"]
+      assert run.final_haiku == "#{ai}\nFrosch springt hinein\n#{ai}"
       refute is_nil(run.completed_at)
     end
 
