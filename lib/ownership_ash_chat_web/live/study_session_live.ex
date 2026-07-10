@@ -196,11 +196,45 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
           <section class="rounded-xl border border-base-300 p-6 space-y-4 text-center">
             <h1 class="text-2xl font-semibold">Studie abgeschlossen</h1>
             <p class="text-base-content/70">
-              Vielen Dank! Bitte notiere deine Sitzungs-ID und gib sie im Fragebogen-Tool ein:
+              Vielen Dank! Bitte kopiere deine Sitzungs-ID und gib sie im Fragebogen-Tool ein:
             </p>
             <p class="font-mono text-base break-all select-all bg-base-200 rounded-lg px-4 py-3">
               {@study.id}
             </p>
+            <button
+              type="button"
+              phx-hook=".CopyId"
+              id="copy-session-id"
+              data-copy={@study.id}
+              data-label="📋 Kopieren"
+              data-label-copied="✅ Kopiert!"
+              class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-content hover:opacity-90 transition-opacity"
+            >
+              📋 Kopieren
+            </button>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyId">
+              export default {
+                mounted() {
+                  this.timeout = null;
+                  this.el.addEventListener("click", () => {
+                    navigator.clipboard.writeText(this.el.dataset.copy);
+                    this.el.textContent = this.el.dataset.labelCopied;
+                    this.el.classList.add("bg-success", "text-success-content");
+                    this.el.classList.remove("bg-primary", "text-primary-content");
+
+                    clearTimeout(this.timeout);
+                    this.timeout = setTimeout(() => {
+                      this.el.textContent = this.el.dataset.label;
+                      this.el.classList.remove("bg-success", "text-success-content");
+                      this.el.classList.add("bg-primary", "text-primary-content");
+                    }, 3000);
+                  });
+                },
+                destroyed() {
+                  clearTimeout(this.timeout);
+                }
+              }
+            </script>
           </section>
         <% end %>
 
