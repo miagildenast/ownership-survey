@@ -41,6 +41,16 @@ defmodule OwnershipAshChat.Study.ExportTest do
       assert length(map.runs) == 3
     end
 
+    test "export_session_by_case_id/2 loads the same session by its case_id" do
+      session = seed_session(case_id: "case-export-2")
+
+      map = "case-export-2" |> Study.export_session_by_case_id!() |> Export.session_to_map()
+
+      assert map.session_id == session.id
+      assert map.case_id == "case-export-2"
+      assert length(map.runs) == 3
+    end
+
     test "sorts writing runs by run_index with the modification run last" do
       session = seed_session()
 

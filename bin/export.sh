@@ -10,19 +10,40 @@ set -euo pipefail
 #     ./bin/export.sh                              # all -> ./study_export_all.json
 #     ./bin/export.sh completed                    # completed -> ./study_export_completed.json
 #     ./bin/export.sh completed ~/Desktop/x.json   # completed -> given local path
+#
+#     ./bin/export.sh --session-id <session_id> [local_out]
+#     ./bin/export.sh --case-id <case_id> [local_out]
 
 : "${UBERSPACE_USER:?set UBERSPACE_USER (see .envrc.private.example)}"
 : "${UBERSPACE_SERVER:?set UBERSPACE_SERVER (see .envrc.private.example)}"
 
-status="${1:-all}"
-local_out="${2:-study_export_${status}.json}"
+case "${1:-all}" in
+  --session-id)
+    id="${2:?--session-id requires a value}"
+    remote_args=(--session-id "$id")
+    slug="session_${id}"
+    local_out="${3:-study_export_${slug}.json}"
+    ;;
+  --case-id)
+    id="${2:?--case-id requires a value}"
+    remote_args=(--case-id "$id")
+    slug="case_${id}"
+    local_out="${3:-study_export_${slug}.json}"
+    ;;
+  *)
+    status="${1:-all}"
+    remote_args=("$status")
+    slug="$status"
+    local_out="${2:-study_export_${slug}.json}"
+    ;;
+esac
 
 # Path on the server (relative to the login home dir) for the freshly built JSON.
-remote_tmp="ownership_ash_chat_export_${status}.json"
+remote_tmp="ownership_ash_chat_export_${slug}.json"
 
 # build the JSON on the server
 ssh "$UBERSPACE_USER@$UBERSPACE_SERVER" \
-  "bash -l -c 'cd ownership_ash_chat && ./bin/export_remote.sh $status ~/$remote_tmp'"
+  "bash -l -c 'cd ownership_ash_chat && ./bin/export_remote.sh ${remote_args[*]} ~/$remote_tmp'"
 
 # download it to the requested local path
 rsync --archive --compress --human-readable \

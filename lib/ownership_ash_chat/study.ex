@@ -9,6 +9,7 @@ defmodule OwnershipAshChat.Study do
       define :get_session, action: :read, get_by: [:id]
       define :complete_session, action: :complete
       define :export_session, action: :export, get_by: [:id]
+      define :export_session_by_case_id, action: :export, get_by: [:case_id]
       define :list_sessions_for_export, action: :export_all
     end
 

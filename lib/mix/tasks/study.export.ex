@@ -6,8 +6,11 @@ defmodule Mix.Tasks.Study.Export do
 
   ## Usage
 
-      # Single session by id, to stdout
-      mix study.export <session_id>
+      # Single session by session_id (UUID), to stdout
+      mix study.export --session-id <session_id>
+
+      # Single session by case_id (the value handed out via /start?case_id=…)
+      mix study.export --case-id <case_id>
 
       # All sessions
       mix study.export --all
@@ -16,7 +19,7 @@ defmodule Mix.Tasks.Study.Export do
       mix study.export --all --status completed
 
       # Write to a file instead of stdout
-      mix study.export <session_id> --output session.json
+      mix study.export --session-id <session_id> --output session.json
       mix study.export --all -o sessions.json
   """
 
@@ -25,16 +28,22 @@ defmodule Mix.Tasks.Study.Export do
   alias OwnershipAshChat.Study
   alias OwnershipAshChat.Study.Export
 
-  @switches [all: :boolean, status: :string, output: :string]
+  @switches [
+    all: :boolean,
+    status: :string,
+    output: :string,
+    session_id: :string,
+    case_id: :string
+  ]
   @aliases [o: :output]
 
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
 
-    {opts, args, _invalid} = OptionParser.parse(argv, switches: @switches, aliases: @aliases)
+    {opts, _args, _invalid} = OptionParser.parse(argv, switches: @switches, aliases: @aliases)
 
-    json = build_json(opts, args)
+    json = build_json(opts)
 
     case opts[:output] do
       nil -> IO.puts(json)
@@ -42,18 +51,24 @@ defmodule Mix.Tasks.Study.Export do
     end
   end
 
-  defp build_json(opts, args) do
-    if opts[:all] do
-      opts |> status_filter() |> Study.list_sessions_for_export!() |> Export.to_json!()
-    else
-      export_one(args)
+  defp build_json(opts) do
+    cond do
+      opts[:all] ->
+        opts |> status_filter() |> Study.list_sessions_for_export!() |> Export.to_json!()
+
+      opts[:session_id] ->
+        opts[:session_id] |> Study.export_session!() |> Export.to_json!()
+
+      opts[:case_id] ->
+        opts[:case_id] |> Study.export_session_by_case_id!() |> Export.to_json!()
+
+      true ->
+        usage_error()
     end
   end
 
-  defp export_one([id]), do: id |> Study.export_session!() |> Export.to_json!()
-
-  defp export_one(_),
-    do: Mix.raise("Provide a single <session_id> or use --all. See `mix help study.export`.")
+  defp usage_error,
+    do: Mix.raise("Provide --session-id, --case-id or --all. See `mix help study.export`.")
 
   defp status_filter(opts) do
     case opts[:status] do

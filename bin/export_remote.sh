@@ -5,20 +5,32 @@
 # epmd needed. Don't call this from your laptop; use bin/export.sh.
 #
 #     ./bin/export_remote.sh <all|in_progress|completed|aborted> <output_path>
+#     ./bin/export_remote.sh --session-id <session_id> <output_path>
+#     ./bin/export_remote.sh --case-id <case_id> <output_path>
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/_build/prod/rel/ownership_ash_chat/bin/ownership_ash_chat"
 
-status="${1:-all}"
-output="${2:?output path required}"
-
-case "$status" in
-  all)         arg="nil" ;;
-  in_progress) arg=":in_progress" ;;
-  completed)   arg=":completed" ;;
-  aborted)     arg=":aborted" ;;
-  *) echo "Unknown status '$status' (use: all|in_progress|completed|aborted)" >&2; exit 1 ;;
+case "${1:-all}" in
+  --session-id)
+    id="${2:?--session-id requires a value}"
+    output="${3:?output path required}"
+    arg="{:session_id, \"$id\"}"
+    ;;
+  --case-id)
+    id="${2:?--case-id requires a value}"
+    output="${3:?output path required}"
+    arg="{:case_id, \"$id\"}"
+    ;;
+  all)         output="${2:?output path required}"; arg="nil" ;;
+  in_progress) output="${2:?output path required}"; arg=":in_progress" ;;
+  completed)   output="${2:?output path required}"; arg=":completed" ;;
+  aborted)     output="${2:?output path required}"; arg=":aborted" ;;
+  *)
+    echo "Unknown selector '$1' (use: all|in_progress|completed|aborted|--session-id <id>|--case-id <id>)" >&2
+    exit 1
+    ;;
 esac
 
 # The supervisord service file is the single source of truth for prod env.
