@@ -112,18 +112,30 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   defp attempt_line({base, retry} = prompts, target, generator, remaining, previous, candidates) do
+    attempt_no = length(candidates) + 1
+
     prompt =
       case previous do
         nil -> base
         {bad_line, count} -> retry.(bad_line, count)
       end
 
+    Logger.debug(
+      "PingPong attempt #{attempt_no}: target #{target} syllables, prompt: #{inspect(prompt)}"
+    )
+
     line = generator |> invoke_generator(prompt) |> strip_line()
     count = Syllables.count(line)
+
+    Logger.debug(
+      "PingPong attempt #{attempt_no} response: #{inspect(line)} (#{count} syllables, target #{target})"
+    )
+
     candidates = candidates ++ [line]
 
     cond do
       count == target ->
+        Logger.debug("PingPong attempt #{attempt_no}: accepted #{inspect(line)}")
         {:ok, line}
 
       remaining <= 1 ->
@@ -174,13 +186,17 @@ defmodule OwnershipAshChat.Study.PingPong do
       [system_message(), Context.user(prompt)]
       |> Enum.reject(&is_nil/1)
 
+    Logger.debug("PingPong LLM request (model #{inspect(LLM.model())}): #{inspect(prompt)}")
+
     case ReqLLM.generate_text(
            ReqLLM.model!(LLM.model()),
            Context.new(messages),
            LLM.req_llm_opts()
          ) do
       {:ok, response} ->
-        response |> ReqLLM.Response.text() |> to_string()
+        text = response |> ReqLLM.Response.text() |> to_string()
+        Logger.debug("PingPong LLM response: #{inspect(text)}")
+        text
 
       {:error, reason} ->
         Logger.error("PingPong LLM call failed: #{inspect(reason)}")
@@ -215,9 +231,15 @@ defmodule OwnershipAshChat.Study.PingPong do
   Falls back to the original haiku unchanged on LLM error.
   """
   def generate_modification(haiku, variant, _opts \\ []) do
+    prompt = modification_prompt(haiku, variant)
+
     messages =
-      [system_message(), Context.user(modification_prompt(haiku, variant))]
+      [system_message(), Context.user(prompt)]
       |> Enum.reject(&is_nil/1)
+
+    Logger.debug(
+      "PingPong modification LLM request (variant #{inspect(variant)}, model #{inspect(LLM.model())}): #{inspect(prompt)}"
+    )
 
     case ReqLLM.generate_text(
            ReqLLM.model!(LLM.model()),
@@ -225,7 +247,9 @@ defmodule OwnershipAshChat.Study.PingPong do
            LLM.req_llm_opts()
          ) do
       {:ok, response} ->
-        response |> ReqLLM.Response.text() |> to_string() |> strip_haiku()
+        modified = response |> ReqLLM.Response.text() |> to_string() |> strip_haiku()
+        Logger.debug("PingPong modification LLM response: #{inspect(modified)}")
+        modified
 
       {:error, reason} ->
         Logger.error("PingPong modification LLM call failed: #{inspect(reason)}")
