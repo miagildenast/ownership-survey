@@ -97,6 +97,9 @@ defmodule OwnershipAshChat.MixProject do
        compile: false,
        depth: 1},
       {:swoosh, "~> 1.16"},
+      # Study configuration file (priv/study/config.yml) parsing + Markdown rendering.
+      {:yaml_elixir, "~> 2.11"},
+      {:earmark, "~> 1.4"},
       {:req, "~> 0.5"},
       # for usage_rules
       {:req_llm, "~> 1.7"},

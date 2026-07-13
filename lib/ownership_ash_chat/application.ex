@@ -8,6 +8,10 @@ defmodule OwnershipAshChat.Application do
 
   @impl true
   def start(_type, _args) do
+    # Load + validate the study configuration before anything starts. Invalid or
+    # missing config raises here and aborts boot (fail-fast).
+    OwnershipAshChat.Study.Config.load!()
+
     children = [
       OwnershipAshChatWeb.Telemetry,
       OwnershipAshChat.Repo,

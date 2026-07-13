@@ -15,6 +15,8 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   import OwnershipAshChatWeb.StudyComponents
 
   alias OwnershipAshChat.Study
+  alias OwnershipAshChat.Study.Config
+  alias OwnershipAshChatWeb.Markdown
 
   @impl true
   def mount(_params, session, socket) do
@@ -87,9 +89,10 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
     end
   end
 
-  def handle_event("submit_likert", %{"likert" => answers}, socket) do
+  def handle_event("submit_likert", %{"likert" => answers} = params, socket) do
     likert = Map.new(answers, fn {key, value} -> {key, String.to_integer(value)} end)
-    Study.submit_likert!(socket.assigns.run, %{likert: likert})
+    open_answers = Map.get(params, "open_answers", %{})
+    Study.submit_likert!(socket.assigns.run, %{likert: likert, open_answers: open_answers})
 
     study = Study.get_session!(socket.assigns.study.id, load: [:runs])
 
@@ -316,11 +319,10 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
         <%= if @step == :pre_modification do %>
           <section class="rounded-xl border border-base-300 p-6 space-y-4">
-            <h1 class="text-2xl font-semibold">Schreibphase abgeschlossen</h1>
-            <p class="text-base-content/70">
-              Alle vier Runs wurden abgeschlossen. Im nächsten Schritt siehst du eine
-              KI-Modifikation deines besten Haikus und bewertest sie kurz.
-            </p>
+            <h1 class="text-2xl font-semibold">{Config.screen(:pre_modification).heading}</h1>
+            <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
+              {Markdown.to_html(Config.screen(:pre_modification).body)}
+            </div>
             <div class="flex justify-end" phx-mounted={JS.focus(to: "#weiter-btn")}>
               <.button
                 id="weiter-btn"
@@ -335,10 +337,10 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
         <%= if @step == :all_done do %>
           <section class="rounded-xl border border-base-300 p-6 space-y-4 text-center">
-            <h1 class="text-2xl font-semibold">Studie abgeschlossen</h1>
-            <p class="text-base-content/70">
-              Vielen Dank! Bitte kopiere deine Sitzungs-ID und gib sie im Fragebogen-Tool ein:
-            </p>
+            <h1 class="text-2xl font-semibold">{Config.screen(:all_done).heading}</h1>
+            <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
+              {Markdown.to_html(Config.screen(:all_done).body)}
+            </div>
             <p class="font-mono text-base break-all select-all bg-base-200 rounded-lg px-4 py-3">
               {@study.id}
             </p>

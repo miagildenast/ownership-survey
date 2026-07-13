@@ -36,7 +36,8 @@ defmodule OwnershipAshChat.Study.Export do
       source_run_index: run.source_run_index,
       modified_line_index: run.modified_line_index,
       original_haiku: run.original_haiku,
-      modified_haiku: run.modified_haiku
+      modified_haiku: run.modified_haiku,
+      open_answers: run.open_answers
     })
   end
 

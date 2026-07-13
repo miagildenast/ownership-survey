@@ -31,11 +31,12 @@ defmodule OwnershipAshChat.Study.PingPong do
   require Logger
 
   alias OwnershipAshChat.LLM
+  alias OwnershipAshChat.Study.Config
   alias OwnershipAshChat.Study.Syllables
   alias ReqLLM.Context
 
-  # Haiku syllable targets by 0-based line position (5-7-5).
-  @line_targets %{0 => 5, 1 => 7, 2 => 5}
+  # Haiku syllable targets by 0-based line position (5-7-5), from the study config.
+  defp line_targets, do: Config.syllable_targets()
 
   @doc """
   Total number of lines (passages) a writing run holds before it auto-completes.
@@ -89,7 +90,7 @@ defmodule OwnershipAshChat.Study.PingPong do
     transcript = run.transcript || []
     position = length(transcript)
     prompts = prompt_builders(run, transcript, position)
-    target = Map.fetch!(@line_targets, position)
+    target = Map.fetch!(line_targets(), position)
     generator = line_generator(opts)
     attempt_line(prompts, target, generator, line_attempts(opts), nil, [])
   end
@@ -227,7 +228,7 @@ defmodule OwnershipAshChat.Study.PingPong do
 
   @doc """
   Produce a variant-modified version of a single haiku line, validated against its
-  5-7-5 syllable target (`@line_targets[line_index]`) with the same reprompt loop the
+  5-7-5 syllable target (`line_targets()[line_index]`) with the same reprompt loop the
   generated lines use (`attempt_line/6` + `Syllables.count/1`).
 
   Returns the new line text (a single line). When no attempt hits the target within
@@ -239,7 +240,7 @@ defmodule OwnershipAshChat.Study.PingPong do
   `generate_passage/2` so tests can drive the loop without a live model.
   """
   def generate_modification(haiku, variant, line_index, opts \\ []) do
-    target = Map.fetch!(@line_targets, line_index)
+    target = Map.fetch!(line_targets(), line_index)
     base = modification_prompt(haiku, variant, line_index)
     retry = &modification_retry_prompt(haiku, variant, line_index, &1, &2)
     generator = line_generator(opts)
@@ -263,51 +264,26 @@ defmodule OwnershipAshChat.Study.PingPong do
   line, so the caller can splice it in without disturbing the other lines.
   """
   def modification_prompt(haiku, variant, line_index) do
-    original_line = line_at(haiku, line_index)
     line_no = line_index + 1
-    target = Map.fetch!(@line_targets, line_index)
+    target = Map.fetch!(line_targets(), line_index)
+    change = interpolate(Config.modification_change(variant), [{"{line_no}", line_no}])
 
-    change_desc =
-      case variant do
-        :a -> "Change exactly one word in line #{line_no}."
-        :b -> "Replace line #{line_no} entirely with a new line."
-      end
-
-    """
-    Here is a German haiku:
-
-    #{haiku}
-
-    Modify only line #{line_no}: „#{original_line}“
-    Modification: #{change_desc}
-
-    Constraints:
-    - Output language: German.
-    - Output ONLY the new version of line #{line_no} — a single line.
-    - Keep the other lines out of your answer.
-    - The new line must contain EXACTLY #{target} syllables.
-    - NEVER return a line with more or fewer than #{target} syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Do not add quotation marks, explanations, or any additional text.
-    """
+    interpolate(Config.modification_prompt_base(), [
+      {"{haiku}", haiku},
+      {"{original_line}", line_at(haiku, line_index)},
+      {"{line_no}", line_no},
+      {"{target}", target},
+      {"{change}", change}
+    ])
   end
 
   @doc """
-  Corrective modification prompt used after a rejected attempt: names the rejected line
-  and its measured syllable count so the model gets concrete feedback instead of
-  re-rolling blind. Otherwise mirrors the base `modification_prompt/3`.
+  Corrective modification prompt used after a rejected attempt: appends the shared
+  retry suffix (rejected line + measured count + target) to the base prompt.
   """
   def modification_retry_prompt(haiku, variant, line_index, rejected_line, count) do
-    line_no = line_index + 1
-    target = Map.fetch!(@line_targets, line_index)
-
-    modification_prompt(haiku, variant, line_index) <>
-      """
-
-      Your previous attempt „#{rejected_line}“ had #{count} syllables, but line #{line_no} \
-      must have EXACTLY #{target} syllables. Write a DIFFERENT version.
-      """
+    target = Map.fetch!(line_targets(), line_index)
+    modification_prompt(haiku, variant, line_index) <> retry_suffix(rejected_line, count, target)
   end
 
   @doc "Replace the 0-based line at `index` in a multi-line haiku with `new_line`."
@@ -323,164 +299,67 @@ defmodule OwnershipAshChat.Study.PingPong do
   end
 
   @doc """
-  Prompt asking the model for the opening haiku line (5 syllables) on the assigned
-  topic. Used as the AI's first turn in `:assigned && :with_ai` runs.
+  Prompt asking the model for the opening haiku line on the assigned topic (position
+  0). Template from the study config (`llm.line_prompts`); `{topic}`/`{target}` filled.
   """
   def first_line_prompt(topic) do
-    """
-    Generate the first line of a German haiku on the topic „#{topic}“.
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 5 syllables.
-    - NEVER return a line with more or fewer than 5 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the first line.
-    """
+    interpolate(Config.line_prompt(0), [{"{topic}", topic}, {"{target}", target(0)}])
   end
 
-  @doc """
-  Corrective first-line prompt used after a rejected attempt: it names the rejected
-  line and its measured syllable count so the model gets concrete feedback instead
-  of re-rolling blind.
-  """
+  @doc "Corrective first-line prompt: base prompt + shared retry suffix."
   def first_line_retry_prompt(topic, rejected_line, count) do
-    """
-    Generate the first line of a German haiku on the topic „#{topic}“.
-
-    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
-    have EXACTLY 5 syllables. Write a DIFFERENT first line.
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 5 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the first line.
-    """
+    first_line_prompt(topic) <> retry_suffix(rejected_line, count, target(0))
   end
 
   @doc """
-  The literal prompt asking the model for the second haiku line (7 syllables),
-  given line 1. Used as the AI's turn in `:free && :with_ai` runs, where line 1
-  (written by the human) is the only topic signal — by design, `:free` runs have
-  no explicit topic.
+  Prompt for the second haiku line (position 1), given line 1. Template from config;
+  `{line1}`/`{target}` filled. Used as the AI's turn in `:free && :with_ai` runs.
   """
   def second_line_prompt(line1) do
-    """
-    Generate the second line of a German haiku.
-
-    First line:
-    „#{line1}“
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 7 syllables.
-    - NEVER return a line with more or fewer than 7 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the second line.
-    """
+    interpolate(Config.line_prompt(1), [{"{line1}", line1}, {"{target}", target(1)}])
   end
 
-  @doc """
-  Corrective prompt used after a rejected attempt: it names the rejected line and its
-  measured syllable count so the model gets concrete feedback instead of re-rolling
-  blind.
-  """
+  @doc "Corrective second-line prompt: base prompt + shared retry suffix."
   def second_line_retry_prompt(line1, rejected_line, count) do
-    """
-    Generate the second line of a German haiku.
-
-    First line:
-    „#{line1}“
-
-    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
-    have EXACTLY 7 syllables. Write a DIFFERENT second line.
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 7 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the second line.
-    """
+    second_line_prompt(line1) <> retry_suffix(rejected_line, count, target(1))
   end
 
   @doc """
-  Prompt asking the model for the closing haiku line (5 syllables), given lines 1
-  and 2. Used as the AI's final turn in `:assigned && :with_ai` runs.
+  Prompt for the closing haiku line (position 2), given lines 1 and 2. Template from
+  config; `{line1}`/`{line2}`/`{target}` filled.
   """
   def third_line_prompt(line1, line2) do
-    """
-    Generate the third line of a German haiku.
-
-    First line:
-    „#{line1}“
-
-    Second line:
-    „#{line2}“
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 5 syllables.
-    - NEVER return a line with more or fewer than 5 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the third line.
-    """
+    interpolate(Config.line_prompt(2), [
+      {"{line1}", line1},
+      {"{line2}", line2},
+      {"{target}", target(2)}
+    ])
   end
 
-  @doc """
-  Corrective third-line prompt used after a rejected attempt: it names the rejected
-  line and its measured syllable count so the model gets concrete feedback instead
-  of re-rolling blind.
-  """
+  @doc "Corrective third-line prompt: base prompt + shared retry suffix."
   def third_line_retry_prompt(line1, line2, rejected_line, count) do
-    """
-    Generate the third line of a German haiku.
+    third_line_prompt(line1, line2) <> retry_suffix(rejected_line, count, target(2))
+  end
 
-    First line:
-    „#{line1}“
+  defp target(position), do: Map.fetch!(line_targets(), position)
 
-    Second line:
-    „#{line2}“
+  # The shared corrective suffix appended to any base prompt on a retry. Separated
+  # by a blank line so it reads as its own paragraph regardless of the base prompt's
+  # trailing whitespace.
+  defp retry_suffix(rejected_line, count, target) do
+    "\n\n" <>
+      interpolate(Config.retry_suffix(), [
+        {"{rejected_line}", rejected_line},
+        {"{count}", count},
+        {"{target}", target}
+      ])
+  end
 
-    Your previous attempt „#{rejected_line}“ had #{count} syllables, but the line must
-    have EXACTLY 5 syllables. Write a DIFFERENT third line.
-
-    Constraints:
-    - Output exactly one line.
-    - Output language: German.
-    - Do not add quotation marks.
-    - Do not add explanations.
-    - Do not add any text before or after the line.
-    - The line must contain EXACTLY 5 syllables.
-    - Before answering, split every word into syllables and count them.
-    - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
-    - Return only the third line.
-    """
+  # Replace each `{placeholder}` in `template` with its bound value (ordered).
+  defp interpolate(template, bindings) do
+    Enum.reduce(bindings, template, fn {placeholder, value}, acc ->
+      String.replace(acc, placeholder, to_string(value))
+    end)
   end
 
   defp system_message do

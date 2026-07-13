@@ -21,6 +21,8 @@
   themes: false;
 }
 
+@plugin "@tailwindcss/typography";
+
 /* daisyUI theme plugin. You can update this file by fetching the latest version with:
   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
   We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
@@ -104,6 +106,9 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* Make LiveView wrapper divs transparent for layout */
-[data-phx-session], [data-phx-teleported-src] { display: contents }
+[data-phx-session],
+[data-phx-teleported-src] {
+  display: contents;
+}
 
 /* This file is for your main application CSS */

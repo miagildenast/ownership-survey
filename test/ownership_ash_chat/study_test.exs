@@ -456,6 +456,47 @@ defmodule OwnershipAshChat.StudyTest do
     end
   end
 
+  describe "submit_likert/2 open-ended answers" do
+    @likert %{"zufriedenheit" => 5, "freude" => 4, "fluss" => 3}
+
+    test "a writing run must not carry open answers" do
+      run = generate(run())
+
+      assert {:error, _} =
+               Study.submit_likert(run, %{likert: @likert, open_answers: %{"begruendung" => "x"}})
+    end
+
+    test "a modification run requires all configured open answers, non-blank" do
+      run = generate(run(kind: :modification, run_index: nil))
+
+      # missing entirely
+      assert {:error, _} = Study.submit_likert(run, %{likert: @likert})
+      # blank value
+      assert {:error, _} =
+               Study.submit_likert(run, %{
+                 likert: @likert,
+                 open_answers: %{"begruendung" => "  ", "anmerkungen" => "ok"}
+               })
+    end
+
+    test "a modification run accepts and persists complete open answers" do
+      run = generate(run(kind: :modification, run_index: nil))
+      answers = %{"begruendung" => "Klingt runder.", "anmerkungen" => "Keine."}
+
+      updated = Study.submit_likert!(run, %{likert: @likert, open_answers: answers})
+
+      assert updated.open_answers == answers
+    end
+
+    test "export includes open_answers only for the modification run" do
+      writing = generate(run())
+      modification = generate(run(kind: :modification, run_index: nil))
+
+      refute Map.has_key?(Study.Export.run_to_map(writing), :open_answers)
+      assert Map.has_key?(Study.Export.run_to_map(modification), :open_answers)
+    end
+  end
+
   describe "complete_session/1" do
     test "marks session :completed and stamps completed_at" do
       session = generate(session())

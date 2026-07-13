@@ -15,6 +15,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   alias OwnershipAshChat.Study.Likert
   alias OwnershipAshChat.Study.Run.Transcript
+  alias OwnershipAshChatWeb.Markdown
   alias OwnershipAshChatWeb.StudyTexts
 
   @doc """
@@ -126,8 +127,8 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       <%= for entry <- @entries do %>
         <%= case entry do %>
           <% {:task, task} -> %>
-            <div class="mr-auto max-w-[80%] rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/60">
-              {task}
+            <div class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/60">
+              {Markdown.to_html(task)}
             </div>
           <% {:passage, passage} -> %>
             <div class={[
@@ -148,9 +149,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       <div
         :if={@current_task}
         id={"task-message-#{length(@run.transcript || [])}"}
-        class="mr-auto max-w-[80%] rounded-2xl rounded-bl-sm border-2 border-orange-400 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/80"
+        class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border-2 border-orange-400 bg-base-200/60 px-4 py-2 text-sm text-base-content/80"
       >
-        {@current_task}
+        {Markdown.to_html(@current_task)}
       </div>
 
       <div
@@ -222,9 +223,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
     ]}>
       <div class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         <h1 class="text-xl font-semibold md:text-2xl">{StudyTexts.intro_heading()}</h1>
-        <p class="mt-3 whitespace-pre-line text-sm text-base-content/80 md:mt-4 md:text-base">
-          {StudyTexts.intro_text()}
-        </p>
+        <div class="prose prose-sm dark:prose-invert md:prose-base mt-3 max-w-none text-base-content/80 md:mt-4">
+          {Markdown.to_html(StudyTexts.intro_text())}
+        </div>
       </div>
       <div :if={@show_start} class="shrink-0 p-4 pt-0 md:p-6 md:pt-0">
         <.button
@@ -281,6 +282,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       |> assign(:haiku, likert_haiku(assigns.run))
       |> assign(:likert_items, Likert.items())
       |> assign(:likert_options, likert_options())
+      |> assign(:open_questions, open_questions_for(assigns.run))
 
     ~H"""
     <.form for={%{}} id="likert-form" phx-submit="submit_likert" class="space-y-6">
@@ -292,7 +294,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         <h2 class="text-xl font-semibold">Fragebogen:</h2>
 
         <fieldset :for={{item, item_idx} <- Enum.with_index(@likert_items)} class="space-y-2">
-          <legend class="text-sm font-medium text-base-content">{item.prompt}</legend>
+          <legend class="prose prose-sm dark:prose-invert max-w-none text-sm font-medium text-base-content">
+            {Markdown.to_html(item.prompt)}
+          </legend>
           <div class="flex flex-col gap-2">
             <label
               :for={{{label, value}, opt_idx} <- Enum.with_index(@likert_options)}
@@ -313,6 +317,27 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         </fieldset>
       </section>
 
+      <section
+        :if={@open_questions != []}
+        class="rounded-xl border border-base-300 p-4 space-y-4 md:p-6"
+      >
+        <div :for={question <- @open_questions} class="space-y-2">
+          <label
+            for={"open-#{question.key}"}
+            class="prose prose-sm dark:prose-invert block max-w-none text-sm font-medium text-base-content"
+          >
+            {Markdown.to_html(question.prompt)}
+          </label>
+          <textarea
+            id={"open-#{question.key}"}
+            name={"open_answers[#{question.key}]"}
+            rows="4"
+            required
+            class="textarea textarea-bordered w-full"
+          >{open_value(@run, question.key)}</textarea>
+        </div>
+      </section>
+
       <div class="sticky bottom-0 -mx-4 -mb-6 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur sm:-mb-10 sm:mx-0 sm:rounded-t-xl sm:px-3">
         <div class="flex sm:justify-end">
           <.button class="btn btn-primary w-full sm:w-auto" phx-disable-with="Bitte warten…">
@@ -326,6 +351,12 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   defp likert_haiku(%{kind: :modification} = run), do: run.modified_haiku
   defp likert_haiku(run), do: run.final_haiku
+
+  # Open-ended questions are asked only on the modification run.
+  defp open_questions_for(%{kind: :modification}), do: Likert.open_questions()
+  defp open_questions_for(_run), do: []
+
+  defp open_value(run, key), do: Map.get(run.open_answers || %{}, Atom.to_string(key))
 
   defp passage_role(%{"role" => role}), do: role
   defp passage_role(%{role: role}), do: to_string(role)

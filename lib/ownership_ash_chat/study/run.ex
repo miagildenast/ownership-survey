@@ -35,13 +35,17 @@ defmodule OwnershipAshChat.Study.Run do
       change OwnershipAshChat.Study.Run.Changes.AddPassage
     end
 
-    # Store the run's Likert questionnaire answers (plan step #5). The map of
-    # answers is validated against the `Likert` definition (all items present,
-    # values within the scale). Non-atomic: the validation runs on the changeset.
+    # Store the run's Likert questionnaire answers (plan step #5) and, for the
+    # modification run, its open-ended free-text answers. The Likert map is validated
+    # against the `Likert` definition (all items present, values within the scale);
+    # the open answers against the configured open questions (modification run only,
+    # all present and non-blank; empty on writing runs). Non-atomic: the validations
+    # run on the changeset (and OpenEndedAnswers reads the record's `kind`).
     update :submit_likert do
       require_atomic? false
-      accept [:likert]
+      accept [:likert, :open_answers]
       validate OwnershipAshChat.Study.Run.Validations.LikertAnswers
+      validate OwnershipAshChat.Study.Run.Validations.OpenEndedAnswers
     end
 
     create :create do
@@ -54,6 +58,7 @@ defmodule OwnershipAshChat.Study.Run do
         :transcript,
         :final_haiku,
         :likert,
+        :open_answers,
         :started_at,
         :completed_at,
         :variant,
@@ -107,6 +112,13 @@ defmodule OwnershipAshChat.Study.Run do
 
     # Questionnaire answers, all items positively coded.
     attribute :likert, :map do
+      public? true
+      default %{}
+    end
+
+    # Open-ended free-text answers, string-keyed (modification run only; empty for
+    # writing runs). Keys mirror the configured open questions.
+    attribute :open_answers, :map do
       public? true
       default %{}
     end

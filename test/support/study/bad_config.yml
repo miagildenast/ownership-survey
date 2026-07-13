@@ -1,0 +1,35 @@
+# Deliberately invalid study config for tests: the required `title` key is missing.
+intro:
+  heading: "Willkommen"
+  body: "Text"
+task_messages: []
+syllable_targets: [5, 7, 5]
+llm:
+  system_preamble: "x"
+  retry_suffix: "x"
+  line_prompts:
+    - position: 0
+      template: "x"
+  modification:
+    base: "x"
+    change_descriptions:
+      a: "x"
+      b: "x"
+questionnaire:
+  scale:
+    min: 1
+    max: 5
+    labels:
+      - value: 1
+        label: "x"
+  items:
+    - key: k
+      prompt: "p"
+  open_questions: []
+screens:
+  pre_modification:
+    heading: "h"
+    body: "b"
+  all_done:
+    heading: "h"
+    body: "b"

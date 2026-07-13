@@ -5,6 +5,7 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
   import OwnershipAshChat.StudyGenerators
 
   alias OwnershipAshChat.Study
+  alias OwnershipAshChat.Study.Config
 
   # Build a session with a deterministic :without_ai run followed by an
   # :assigned/:with_ai run, and stash its id in the session cookie, as
@@ -194,21 +195,29 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     view |> element("#weiter-btn") |> render_click()
     assert has_element?(view, "#likert-form")
 
-    # Submitting its Likert finishes the study → end screen, no extra click.
+    # The modification run additionally asks the configured open-ended questions.
+    assert has_element?(view, "textarea[name='open_answers[begruendung]']")
+    assert has_element?(view, "textarea[name='open_answers[anmerkungen]']")
+
+    # Submitting its Likert + open answers finishes the study → end screen.
     view
     |> form("#likert-form", %{
-      "likert" => %{"zufriedenheit" => "4", "freude" => "4", "fluss" => "4"}
+      "likert" => %{"zufriedenheit" => "4", "freude" => "4", "fluss" => "4"},
+      "open_answers" => %{"begruendung" => "Klingt runder.", "anmerkungen" => "Keine."}
     })
     |> render_submit()
 
     rendered = render(view)
-    assert rendered =~ "Studie abgeschlossen"
+    assert rendered =~ Config.screen(:all_done).heading
     assert rendered =~ session.id
 
-    # Session must be :completed in the database
-    reloaded = Study.get_session!(session.id)
+    # Session must be :completed in the database, with the open answers stored.
+    reloaded = Study.get_session!(session.id, load: [:runs])
     assert reloaded.status == :completed
     refute is_nil(reloaded.completed_at)
+
+    mod_run = Enum.find(reloaded.runs, &(&1.kind == :modification))
+    assert mod_run.open_answers == %{"begruendung" => "Klingt runder.", "anmerkungen" => "Keine."}
   end
 
   test "shows the end card once all runs are complete (legacy: no modification run)", %{
