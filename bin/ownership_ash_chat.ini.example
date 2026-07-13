@@ -5,6 +5,9 @@ environment=
     MIX_ENV="prod",
     PORT=4001,
     PHX_HOST=USER.uber.space,
+    # Subpath the app is served under. Must match the web-backend prefix (set with
+    # `--remove-prefix`, see README). Omit or set "/" to serve at the domain root.
+    URL_PATH="/ownership-survey",
     DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
     SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
     TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",

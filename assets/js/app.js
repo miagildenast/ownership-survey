@@ -26,7 +26,11 @@ import {hooks as colocatedHooks} from "phoenix-colocated/ownership_ash_chat"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-const liveSocket = new LiveSocket("/live", Socket, {
+// Socket path carries the app's URL prefix (see root.html.heex) so LiveView
+// connects correctly when the app runs under a subpath (e.g. /ownership-survey).
+const socketPath =
+  document.querySelector("meta[name='live-socket-path']")?.getAttribute("content") || "/live"
+const liveSocket = new LiveSocket(socketPath, Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
   hooks: {...colocatedHooks},

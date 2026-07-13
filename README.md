@@ -155,6 +155,19 @@ then run migrations via the release's `bin/migrate`), and `bin/restart_service.s
 After the first deploy, [open a web backend on Uberspace](https://manual.uberspace.de/web-backends/#specific-path)
 pointing at the `PORT` from `ownership_ash_chat.ini` (default `4001`).
 
+**Serving under a subpath.** To run the app under a path prefix (e.g.
+`https://USER.uber.space/ownership-survey` instead of the domain root), set that
+path on the web backend with `--remove-prefix` (the prefix is stripped before
+the request reaches the app) and set `URL_PATH` in `ownership_ash_chat.ini` to
+the same value so Phoenix generates prefixed URLs:
+
+```bash
+uberspace web backend set /ownership-survey --http --port 4001 --remove-prefix
+```
+
+`URL_PATH` defaults to `/` (domain root) when unset. The upstream tool's entry
+link then becomes `https://USER.uber.space/ownership-survey/start?case_id=%caseToken%`.
+
 > **Database:** prod uses SQLite (AshSqlite). `DATABASE_PATH` points at the prod `.db`
 > file; exqlite links uberspace's system SQLite at build time (see `bin/install.sh`).
 

@@ -129,7 +129,7 @@ if config_env() == :prod do
   config :ownership_ash_chat, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: 443, scheme: "https", path: System.get_env("URL_PATH", "/")],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
