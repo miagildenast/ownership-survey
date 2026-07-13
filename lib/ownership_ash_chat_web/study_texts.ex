@@ -56,24 +56,31 @@ defmodule OwnershipAshChatWeb.StudyTexts do
   defp task_message(:free, :without_ai, 0, _topic),
     do: "Schreiben Sie ein Haiku zu einem Thema Ihrer Wahl. Beginnen Sie mit der ersten Zeile."
 
-  defp task_message(_topic_source, :without_ai, 1, _topic),
-    do: "Schreiben Sie nun die zweite Zeile."
+  # some steps are commented out as only a the first line is required for the study.
 
-  defp task_message(_topic_source, :without_ai, 2, _topic),
-    do: "Schreiben Sie zum Abschluss die dritte Zeile."
+  # defp task_message(_topic_source, :without_ai, 1, _topic),
+  #   do: "Schreiben Sie nun die zweite Zeile."
 
-  defp task_message(:assigned, :with_ai, 1, topic),
+  # defp task_message(_topic_source, :without_ai, 2, _topic),
+  #   do: "Schreiben Sie zum Abschluss die dritte Zeile."
+
+  defp task_message(:assigned, :with_ai, 0, topic),
     do:
       "Die KI hat die erste Zeile zum Thema „#{topic}“ geschrieben. " <>
         "Schreiben Sie nun die zweite Zeile – die dritte Zeile ergänzt die KI."
+
+  # defp task_message(:assigned, :with_ai, 1, topic),
+  #   do:
+  #     "Die KI hat die erste Zeile zum Thema „#{topic}“ geschrieben. " <>
+  #       "Schreiben Sie nun die zweite Zeile – die dritte Zeile ergänzt die KI."
 
   defp task_message(:free, :with_ai, 0, _topic),
     do:
       "Schreiben Sie die erste Zeile eines Haikus zu einem Thema Ihrer Wahl – " <>
         "die nächste Zeile wird die KI generieren."
 
-  defp task_message(:free, :with_ai, 2, _topic),
-    do: "Schreiben Sie zum Abschluss die dritte Zeile des Haikus."
+  # defp task_message(:free, :with_ai, 2, _topic),
+  #   do: "Schreiben Sie zum Abschluss die dritte Zeile des Haikus."
 
   defp task_message(_topic_source, _ai_mode, _position, _topic), do: nil
 end
