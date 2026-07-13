@@ -10,7 +10,6 @@ defmodule OwnershipAshChatWeb.StudyTexts do
   """
 
   alias OwnershipAshChat.Study.Config
-  alias OwnershipAshChat.Study.Run.Transcript
 
   @doc "The study title shown as the headline on every view."
   def title, do: Config.title()
@@ -31,16 +30,14 @@ defmodule OwnershipAshChatWeb.StudyTexts do
 
   @doc """
   The task message for the line at the given 0-based position (used to re-render
-  already-answered tasks in the chat history). `nil` for AI turns and positions
-  without a configured message.
+  tasks in the chat history). `nil` for positions without a configured message.
+
+  A message may be configured at a position the AI writes (e.g. `assigned/with_ai`
+  position 0): it is then shown first, above the AI's opening line, to frame the run.
   """
   def task_message(run, position) do
-    if Transcript.ai_turn?(run, position) do
-      nil
-    else
-      Config.task_message(run.topic_source, run.ai_mode, position)
-      |> interpolate_topic(run.topic)
-    end
+    Config.task_message(run.topic_source, run.ai_mode, position)
+    |> interpolate_topic(run.topic)
   end
 
   defp interpolate_topic(nil, _topic), do: nil

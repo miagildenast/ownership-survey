@@ -19,9 +19,9 @@ defmodule OwnershipAshChat.Study.ConfigTest do
     end
 
     test "task messages resolve by condition and interpolate downstream" do
-      # position 0 for free/without_ai, position 1 for assigned/with_ai (AI opens).
+      # position 0 holds the participant guidance for each condition.
       assert Config.task_message(:free, :without_ai, 0) =~ "Haiku"
-      assert Config.task_message(:assigned, :with_ai, 1) =~ "{topic}"
+      assert Config.task_message(:assigned, :with_ai, 0) =~ "{topic}"
       # An unconfigured combination yields nil.
       assert Config.task_message(:free, :without_ai, 2) == nil
     end

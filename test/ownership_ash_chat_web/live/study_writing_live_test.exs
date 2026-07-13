@@ -13,8 +13,8 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
 
     assert html =~ "Schreib-Run"
     # :free runs have no assigned topic — the task message asks for a topic of
-    # the participant's own choice instead.
-    assert html =~ "Thema Ihrer Wahl"
+    # the participant's own choice instead ("Ihrer Wahl" is Markdown-bolded).
+    assert html =~ "Ihrer Wahl"
     refute html =~ "Jahreszeiten"
 
     view
@@ -55,6 +55,16 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
 
     assert html =~ "Jahreszeiten"
     assert html =~ OwnershipAshChat.Study.PingPongStub.text()
+
+    # The guidance is shown first — above the AI's opening line.
+    [task_at] = :binary.matches(html, "zweite Zeile") |> Enum.map(&elem(&1, 0)) |> Enum.take(1)
+
+    [ai_at] =
+      :binary.matches(html, OwnershipAshChat.Study.PingPongStub.text())
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.take(1)
+
+    assert task_at < ai_at
 
     # The participant's single line (line 2) completes the run: AI closes with line 3.
     view

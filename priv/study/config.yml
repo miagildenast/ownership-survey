@@ -32,11 +32,11 @@ task_messages:
     position: 0
     text: >
       Schreiben Sie ein Haiku zu einem Thema **Ihrer Wahl**. Beginnen Sie mit der ersten Zeile.
-  # assigned/with_ai is [AI, user, AI]: the AI opens with line 1, so the participant's
-  # turn — and this guidance — is position 1.
+  # assigned/with_ai is [AI, user, AI]: the AI opens with line 1. This guidance is
+  # shown at position 0 — first, above the AI's opening line — to frame the run.
   - topic_source: assigned
     ai_mode: with_ai
-    position: 1
+    position: 0
     text: >
       Die KI hat die erste Zeile zum Thema „{topic}“ geschrieben.
       Schreiben Sie nun die zweite Zeile – die dritte Zeile ergänzt die KI.
