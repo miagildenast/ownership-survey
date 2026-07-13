@@ -249,12 +249,26 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
     round(done / units * 100)
   end
 
-  defp progress_label(:writing, run, total_runs), do: "Run #{run.run_index} von #{total_runs}"
+  defp progress_label(:writing, run, total_runs), do: run_label(run, total_runs)
 
   defp progress_label(:likert, %{kind: :writing} = run, total_runs),
-    do: "Run #{run.run_index} von #{total_runs}"
+    do: run_label(run, total_runs)
 
   defp progress_label(_step, _run, _total_runs), do: "Abschluss"
+
+  # Run position plus its condition (debug info for piloting the study).
+  defp run_label(run, total_runs) do
+    "Run #{run.run_index} von #{total_runs} · " <>
+      "#{topic_source_label(run.topic_source)} · #{ai_mode_label(run.ai_mode)}"
+  end
+
+  defp topic_source_label(:assigned), do: "Vorgegebenes Thema"
+  defp topic_source_label(:free), do: "Freies Thema"
+  defp topic_source_label(other), do: to_string(other)
+
+  defp ai_mode_label(:with_ai), do: "Mit KI"
+  defp ai_mode_label(:without_ai), do: "Ohne KI"
+  defp ai_mode_label(other), do: to_string(other)
 
   # ---------------------------------------------------------------------------
   # Render
