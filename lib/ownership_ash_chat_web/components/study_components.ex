@@ -127,7 +127,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       <%= for entry <- @entries do %>
         <%= case entry do %>
           <% {:task, task} -> %>
-            <div class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/60">
+            <div class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm text-base-content/60">
               {Markdown.to_html(task)}
             </div>
           <% {:passage, passage} -> %>
