@@ -43,49 +43,79 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/study")
   end
 
-  test "shows the first run and advances to the next on Weiter", %{conn: conn} do
+  test "intro → Start → runs 1+2, Likert advances directly to the next run", %{conn: conn} do
     {conn, _session} = session_conn(conn)
 
     {:ok, view, html} = live(conn, ~p"/study")
-    assert html =~ "Run 1 von 2"
-    # The assigned topic is displayed.
-    assert html =~ "Jahreszeiten"
 
-    # Complete run 1 (three human lines → auto-completes).
+    # Fresh session → intro with instructions and Start button, no chat form yet.
+    assert html =~ "Willkommen zur Studie"
+    assert has_element?(view, "#start-btn")
+    refute has_element?(view, "#passage-form")
+
+    # Start begins run 1 (:assigned/:without_ai): chat with the topic task message.
+    view |> element("#start-btn") |> render_click()
+    rendered = render(view)
+    assert rendered =~ "Run 1 von 2"
+    assert rendered =~ "Jahreszeiten"
+    refute has_element?(view, "#start-btn")
+
+    # Complete run 1 (three human lines → auto-completes). Each line is shown
+    # optimistically and persisted async, so await the async result.
     for line <- ["alter Teich", "Frosch springt hinein", "Wasserklang"] do
       view
-      |> form("form[phx-submit=add_passage]", %{"text" => line})
+      |> form("#passage-form", %{"text" => line})
       |> render_submit()
+
+      render_async(view)
     end
 
-    # Writing done: the assembled haiku and the questionnaire are shown, but not Weiter yet.
+    # Writing done → full-screen Likert: haiku + questionnaire, no chat form.
     rendered = render(view)
     assert rendered =~ "alter Teich\nFrosch springt hinein\nWasserklang"
     assert rendered =~ "Fragebogen"
-    refute rendered =~ "Weiter"
+    refute has_element?(view, "#passage-form")
 
-    # Answer the Likert questionnaire → the Weiter button appears.
+    # Submitting the Likert advances directly into run 2 (:assigned/:with_ai):
+    # the AI's opening line is generated on entry and shown before any input.
     view
     |> form("#likert-form", %{
       "likert" => %{"zufriedenheit" => "5", "freude" => "4", "fluss" => "3"}
     })
     |> render_submit()
 
-    assert render(view) =~ "Weiter"
-
-    # Advance to run 2 (:assigned/:with_ai): the AI's opening line is generated on
-    # entry and shown before any input.
-    view |> element("button", "Weiter") |> render_click()
     rendered = render(view)
     assert rendered =~ "Run 2 von 2"
     assert rendered =~ OwnershipAshChat.Study.PingPongStub.text()
+    refute has_element?(view, "#likert-form")
 
     # One human line (line 2) completes the run — the AI closes with line 3.
     view
-    |> form("form[phx-submit=add_passage]", %{"text" => "Frosch springt hinein"})
+    |> form("#passage-form", %{"text" => "Frosch springt hinein"})
     |> render_submit()
 
+    # The pending line shows immediately, before the AI reply landed.
+    assert render(view) =~ "Frosch springt hinein"
+
+    render_async(view)
     assert render(view) =~ "Fragebogen"
+  end
+
+  test "resumes into the chat (no intro) once the first run has begun", %{conn: conn} do
+    {conn, session} = session_conn(conn)
+
+    # Begin run 1 as the Start click would, then reload the page.
+    session
+    |> then(&Study.get_session!(&1.id, load: [:runs]))
+    |> Map.get(:runs)
+    |> Enum.find(&(&1.run_index == 1))
+    |> Study.begin_run!()
+
+    {:ok, view, html} = live(conn, ~p"/study")
+
+    refute has_element?(view, "#start-btn")
+    assert has_element?(view, "#passage-form")
+    assert html =~ "Run 1 von 2"
   end
 
   test "shows pre_modification transition card after all writing runs complete", %{conn: conn} do
@@ -116,23 +146,25 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
 
     # Only one writing run, it's done → transition card
     assert html =~ "Schreibphase abgeschlossen"
-    assert html =~ "Weiter"
+    assert has_element?(view, "#weiter-btn")
     refute html =~ "Studie abgeschlossen"
 
-    # Clicking Weiter creates the modification run
-    view |> element("button", "Weiter") |> render_click()
+    # Clicking Weiter creates the modification run → full-screen Likert showing
+    # only the modified haiku (no comparison, no debug info).
+    view |> element("#weiter-btn") |> render_click()
 
     rendered = render(view)
-    assert rendered =~ "Modifikations-Run"
-    assert rendered =~ "Original-Haiku"
-    assert rendered =~ "Modifiziertes Haiku"
     assert rendered =~ "(modified)"
-    # The changed line is bold-printed in both the original and modified views.
-    assert rendered =~ "font-bold"
     assert rendered =~ "Fragebogen"
+    assert has_element?(view, "#likert-form")
+    refute rendered =~ "Original-Haiku"
+    refute rendered =~ "Modifiziertes Haiku"
+    refute rendered =~ "Modifikations-Run"
   end
 
-  test "modification run Likert → Weiter → end screen, session :completed", %{conn: conn} do
+  test "modification run Likert submits straight to the end screen, session :completed", %{
+    conn: conn
+  } do
     Application.put_env(
       :ownership_ash_chat,
       :study_modification_responder,
@@ -158,21 +190,16 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
     {:ok, view, _html} = live(conn, ~p"/study")
 
-    # Advance to modification run
-    view |> element("button", "Weiter") |> render_click()
-    assert render(view) =~ "Modifikations-Run"
+    # Advance to the modification run's Likert screen.
+    view |> element("#weiter-btn") |> render_click()
+    assert has_element?(view, "#likert-form")
 
-    # Submit Likert for modification run → Weiter appears
+    # Submitting its Likert finishes the study → end screen, no extra click.
     view
     |> form("#likert-form", %{
       "likert" => %{"zufriedenheit" => "4", "freude" => "4", "fluss" => "4"}
     })
     |> render_submit()
-
-    assert render(view) =~ "Weiter"
-
-    # Weiter → end screen
-    view |> element("button", "Weiter") |> render_click()
 
     rendered = render(view)
     assert rendered =~ "Studie abgeschlossen"

@@ -1,142 +1,296 @@
 defmodule OwnershipAshChatWeb.StudyComponents do
   @moduledoc """
-  Shared function components for the study writing flow. The `run_panel/1` block (topic
-  display + transcript + passage form + assembled haiku) is reused by both the session-driven
-  `StudySessionLive` (`/study`) and the dev single-run harness `StudyWritingLive`
-  (`/dev/study/run/:run_id`).
+  Shared function components for the study writing flow, reused by the
+  session-driven `StudySessionLive` (`/study`) and the dev single-run harness
+  `StudyWritingLive` (`/dev/study/run/:run_id`):
+
+    * `chat_panel/1` — the ChatGPT-style writing window (bubbles, task messages,
+      typing indicator, input row)
+    * `instructions_panel/1` — the always-visible haiku instructions, with the
+      Start button on the intro screen
+    * `progress_bar/1` — the slim overall-progress bar
+    * `likert_screen/1` — the full-screen post-run questionnaire with the haiku
   """
   use OwnershipAshChatWeb, :html
 
   alias OwnershipAshChat.Study.Likert
-  alias OwnershipAshChat.Study.PingPong
+  alias OwnershipAshChat.Study.Run.Transcript
+  alias OwnershipAshChatWeb.StudyTexts
 
   @doc """
-  Renders one run's writing UI.
+  Renders one run's writing UI as a chat window: transcript passages as message
+  bubbles (participant right, AI left), the UI-only task messages (the current
+  one highlighted, answered ones kept muted in the history), a typing indicator
+  while the AI writes, and the text input pinned at the bottom.
+
+  The form wraps the whole panel so the typing indicator can react to the
+  submit-loading state (`phx-submit-loading:` variant needs the form as ancestor).
 
   Assigns:
     * `:run` — the `Study.Run` record.
     * `:can_add_passage?` — whether the passage form is shown.
-    * `:lines_done?` — whether the run holds its full set of lines.
+    * `:pending_line` — an optimistically shown user line whose persistence (and
+      AI reply) is still in flight; the input is inert while set.
+    * `:disabled` — renders an inert preview (no form, no tasks, disabled input)
+      for the intro screen.
   """
   attr :run, :map, required: true
   attr :can_add_passage?, :boolean, required: true
-  attr :lines_done?, :boolean, required: true
+  attr :pending_line, :string, default: nil
+  attr :disabled, :boolean, default: false
 
-  def run_panel(assigns) do
+  def chat_panel(assigns) do
+    assigns =
+      assigns
+      |> assign(:entries, chat_entries(assigns.run))
+      |> assign(
+        :current_task,
+        if(assigns.disabled, do: nil, else: StudyTexts.task_message(assigns.run))
+      )
+
     ~H"""
-    <div class="space-y-6">
-      <section :if={@run.topic} class="rounded-xl border border-base-300 p-4 space-y-3">
-        <h2 class="font-medium">Thema</h2>
-        <p class="text-base-content/80">{@run.topic}</p>
-      </section>
+    <section class="flex h-full min-h-0 flex-col rounded-xl border border-base-300 bg-base-100">
+      <.form
+        :if={@can_add_passage? and not @disabled and is_nil(@pending_line)}
+        for={%{}}
+        id="passage-form"
+        phx-submit="add_passage"
+        class="flex min-h-0 flex-1 flex-col"
+      >
+        <.chat_messages
+          entries={@entries}
+          current_task={@current_task}
+          run={@run}
+          pending_line={@pending_line}
+        />
 
-      <section class="rounded-xl border border-base-300 p-4 space-y-3">
-        <h2 class="font-medium">Transkript</h2>
-        <p :if={@run.transcript in [nil, []]} class="text-sm text-base-content/50">
-          Noch keine Passagen.
-        </p>
-        <ul class="space-y-2">
-          <li
-            :for={passage <- @run.transcript || []}
-            class={[
-              "rounded-lg px-3 py-2 text-sm",
-              passage_role(passage) == "ai" && "bg-base-200",
-              passage_role(passage) == "ai_enhanced" && "bg-secondary/10",
-              passage_role(passage) == "user" && "bg-primary/10"
-            ]}
-          >
-            <span class="font-mono text-xs uppercase text-base-content/50">
-              {passage_role(passage)}
-            </span>
-            <div>{passage_text(passage)}</div>
-            <p :if={passage_candidates(passage)} class="mt-1 text-xs text-base-content/60">
-              KI konnte nicht zuverlässig eine Zeile generieren, hier sind die
-              ausprobierten Kandidaten: {Enum.join(passage_candidates(passage), ", ")}
-            </p>
-          </li>
-        </ul>
-
-        <.form
-          :if={@can_add_passage?}
-          for={%{}}
-          id="passage-form"
-          phx-submit="add_passage"
-          class="space-y-2"
-        >
-          <.input
-            type="text"
-            id={"passage-input-#{length(@run.transcript || [])}"}
-            name="text"
-            value=""
-            label="Deine Zeile"
-            phx-mounted={JS.focus()}
-          />
+        <div class="flex items-start gap-2 border-t border-base-300 p-3">
+          <div class="flex-1">
+            <.input
+              type="text"
+              id={"passage-input-#{length(@run.transcript || [])}"}
+              name="text"
+              value=""
+              placeholder="Deine Zeile"
+              autocomplete="off"
+              required
+              phx-mounted={JS.focus()}
+            />
+          </div>
           <.button phx-disable-with={
             if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"
           }>
             Senden
           </.button>
-        </.form>
-        <p :if={@lines_done?} class="text-sm text-base-content/60">
-          Schreibphase abgeschlossen ({PingPong.lines()} Zeilen).
-        </p>
-      </section>
+        </div>
+      </.form>
 
-      <section class="rounded-xl border border-base-300 p-4 space-y-3">
-        <h2 class="font-medium">Finales Haiku</h2>
-        <p :if={is_nil(@run.final_haiku)} class="text-sm text-base-content/50">
-          Wird nach der letzten Zeile automatisch zusammengesetzt.
+      <div
+        :if={not @can_add_passage? or @disabled or not is_nil(@pending_line)}
+        class="flex min-h-0 flex-1 flex-col"
+      >
+        <.chat_messages
+          entries={@entries}
+          current_task={@current_task}
+          run={@run}
+          pending_line={@pending_line}
+        />
+
+        <div class="flex items-start gap-2 border-t border-base-300 p-3">
+          <div class="flex-1">
+            <.input type="text" name="text-disabled" value="" placeholder="Deine Zeile" disabled />
+          </div>
+          <.button disabled>Senden</.button>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
+  # The scrollable message list: history entries (passages + already-answered
+  # task messages, muted), the current task (highlighted), the optimistically
+  # shown pending user line, and the AI typing indicator while the reply is
+  # being generated.
+  attr :entries, :list, required: true
+  attr :current_task, :string, default: nil
+  attr :run, :map, required: true
+  attr :pending_line, :string, default: nil
+
+  defp chat_messages(assigns) do
+    ~H"""
+    <div
+      id="chat-messages"
+      phx-hook=".ChatScroll"
+      class="min-h-32 flex-1 space-y-3 overflow-y-auto p-4"
+    >
+      <%= for entry <- @entries do %>
+        <%= case entry do %>
+          <% {:task, task} -> %>
+            <div class="mr-auto max-w-[80%] rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/60">
+              {task}
+            </div>
+          <% {:passage, passage} -> %>
+            <div class={[
+              "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+              passage_role(passage) == "user" &&
+                "ml-auto rounded-br-sm bg-primary text-primary-content",
+              passage_role(passage) != "user" && "mr-auto rounded-bl-sm bg-base-200"
+            ]}>
+              <p>{passage_text(passage)}</p>
+              <p :if={passage_candidates(passage)} class="mt-1 text-xs opacity-70">
+                KI konnte nicht zuverlässig eine Zeile generieren, hier sind die
+                ausprobierten Kandidaten: {Enum.join(passage_candidates(passage), ", ")}
+              </p>
+            </div>
+        <% end %>
+      <% end %>
+
+      <div
+        :if={@current_task}
+        id={"task-message-#{length(@run.transcript || [])}"}
+        class="mr-auto max-w-[80%] rounded-2xl rounded-bl-sm border-2 border-orange-400 bg-base-200/60 px-4 py-2 text-sm italic text-base-content/80"
+      >
+        {@current_task}
+      </div>
+
+      <div
+        :if={@pending_line}
+        id="pending-line"
+        class="ml-auto max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-sm text-primary-content"
+      >
+        <p>{@pending_line}</p>
+      </div>
+
+      <div
+        :if={@pending_line && ai_replying?(@run)}
+        id="ai-typing"
+        class="mr-auto flex max-w-[80%] items-center gap-1.5 rounded-2xl rounded-bl-sm bg-base-200 px-4 py-3"
+      >
+        <span class="size-2 animate-bounce rounded-full bg-base-content/40"></span>
+        <span class="size-2 animate-bounce rounded-full bg-base-content/40 [animation-delay:150ms]"></span>
+        <span class="size-2 animate-bounce rounded-full bg-base-content/40 [animation-delay:300ms]"></span>
+      </div>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".ChatScroll">
+      export default {
+        mounted() {
+          this.el.scrollTop = this.el.scrollHeight;
+        },
+        updated() {
+          this.el.scrollTop = this.el.scrollHeight;
+        }
+      }
+    </script>
+    """
+  end
+
+  # Whether the AI will reply to the pending user line (its turn follows the
+  # position the pending line will occupy).
+  defp ai_replying?(run) do
+    run.ai_mode == :with_ai and
+      Transcript.ai_turn?(run, length(run.transcript || []) + 1)
+  end
+
+  # Interleave answered task messages before the passage they prompted, so the
+  # chat history reads chronologically. AI positions yield no task.
+  defp chat_entries(run) do
+    (run.transcript || [])
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {passage, position} ->
+      case StudyTexts.task_message(run, position) do
+        nil -> [{:passage, passage}]
+        task -> [{:task, task}, {:passage, passage}]
+      end
+    end)
+  end
+
+  @doc """
+  Renders the haiku instructions panel shown next to (desktop) or above (mobile)
+  the chat during the whole writing phase. On the intro screen it additionally
+  carries the big Start button.
+
+  Assigns:
+    * `:show_start` — whether the Start button is rendered (intro only).
+  """
+  attr :show_start, :boolean, default: false
+
+  def instructions_panel(assigns) do
+    ~H"""
+    <section class={[
+      "flex min-h-0 flex-col rounded-xl border border-base-300 md:max-h-none",
+      if(@show_start, do: "max-h-[60dvh]", else: "max-h-[30dvh]")
+    ]}>
+      <div class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+        <h1 class="text-xl font-semibold md:text-2xl">{StudyTexts.intro_heading()}</h1>
+        <p class="mt-3 whitespace-pre-line text-sm text-base-content/80 md:mt-4 md:text-base">
+          {StudyTexts.intro_text()}
         </p>
-        <pre :if={@run.final_haiku} class="whitespace-pre-wrap text-base-content/80">{@run.final_haiku}</pre>
-      </section>
+      </div>
+      <div :if={@show_start} class="shrink-0 p-4 pt-0 md:p-6 md:pt-0">
+        <.button
+          id="start-btn"
+          class="btn btn-primary btn-lg w-full"
+          phx-click="start_study"
+          phx-disable-with="Bitte warten…"
+        >
+          Start
+        </.button>
+      </div>
+    </section>
+    """
+  end
+
+  @doc """
+  Renders the slim overall-progress bar with an optional label.
+
+  Assigns:
+    * `:percent` — 0..100.
+    * `:label` — short progress label (e.g. "Run 2 von 4"), or `nil`.
+  """
+  attr :percent, :integer, required: true
+  attr :label, :string, default: nil
+
+  def progress_bar(assigns) do
+    ~H"""
+    <div class="flex items-center gap-3">
+      <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-base-300">
+        <div
+          class="h-full rounded-full bg-primary transition-[width] duration-500"
+          style={"width: #{@percent}%"}
+        >
+        </div>
+      </div>
+      <span :if={@label} class="whitespace-nowrap text-xs text-base-content/60">{@label}</span>
     </div>
     """
   end
 
-  defp passage_role(%{"role" => role}), do: role
-  defp passage_role(%{role: role}), do: to_string(role)
-  defp passage_role(_), do: nil
-
-  defp passage_text(%{"text" => text}), do: text
-  defp passage_text(%{text: text}), do: text
-  defp passage_text(_), do: ""
-
-  # Non-empty candidate list only for AI passages flagged as fallbacks; nil otherwise.
-  defp passage_candidates(%{"fallback" => true, "candidates" => [_ | _] = candidates}),
-    do: candidates
-
-  defp passage_candidates(_), do: nil
-
   @doc """
-  Renders the post-run Likert questionnaire (plan step #5).
-
-  Shown once the run has auto-completed; submits via the `submit_likert` event and,
-  once answered, shows the saved answers read-only. Reused by `StudySessionLive` and
-  the dev harness `StudyWritingLive`.
+  Renders the full-screen post-run Likert questionnaire: the run's haiku (the
+  modified version for the modification run), the "Fragebogen:" heading, the
+  items, and a submit button that continues to the next task.
 
   Assigns:
-    * `:run` — the completed `Study.Run` record (carries `run.likert`).
+    * `:run` — the completed `Study.Run` record.
   """
   attr :run, :map, required: true
 
-  def likert_panel(assigns) do
+  def likert_screen(assigns) do
     assigns =
       assigns
+      |> assign(:haiku, likert_haiku(assigns.run))
       |> assign(:likert_items, Likert.items())
       |> assign(:likert_options, likert_options())
-      |> assign(:likert_submitted?, likert_submitted?(assigns.run))
 
     ~H"""
-    <section class="rounded-xl border border-base-300 p-4 space-y-3">
-      <h2 class="font-medium">Fragebogen</h2>
+    <.form for={%{}} id="likert-form" phx-submit="submit_likert" class="space-y-6">
+      <section class="rounded-xl border border-base-300 p-4 md:p-6">
+        <pre class="whitespace-pre-wrap text-center text-lg leading-relaxed">{@haiku}</pre>
+      </section>
 
-      <.form
-        :if={not @likert_submitted?}
-        for={%{}}
-        id="likert-form"
-        phx-submit="submit_likert"
-        class="space-y-6"
-      >
+      <section class="rounded-xl border border-base-300 p-4 space-y-4 md:p-6">
+        <h2 class="text-xl font-semibold">Fragebogen:</h2>
+
         <fieldset :for={{item, item_idx} <- Enum.with_index(@likert_items)} class="space-y-2">
           <legend class="text-sm font-medium text-base-content">{item.prompt}</legend>
           <div class="flex flex-col gap-2">
@@ -157,69 +311,40 @@ defmodule OwnershipAshChatWeb.StudyComponents do
             </label>
           </div>
         </fieldset>
-        <.button>Fragebogen absenden</.button>
-      </.form>
+      </section>
 
-      <div :if={@likert_submitted?} class="space-y-2">
-        <p class="text-sm text-success">Fragebogen gespeichert.</p>
-        <ul class="space-y-1 text-sm">
-          <li :for={item <- @likert_items} class="flex justify-between gap-4">
-            <span class="text-base-content/80">{item.prompt}</span>
-            <span class="font-mono">{likert_value(@run, item.key)}</span>
-          </li>
-        </ul>
+      <div class="sticky bottom-0 -mx-4 -mb-6 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur sm:-mb-10 sm:mx-0 sm:rounded-t-xl sm:px-3">
+        <div class="flex sm:justify-end">
+          <.button class="btn btn-primary w-full sm:w-auto" phx-disable-with="Bitte warten…">
+            Weiter
+          </.button>
+        </div>
       </div>
-    </section>
+    </.form>
     """
   end
 
-  @doc """
-  Renders the modification run's display: original haiku and the AI-modified version.
+  defp likert_haiku(%{kind: :modification} = run), do: run.modified_haiku
+  defp likert_haiku(run), do: run.final_haiku
 
-  Assigns:
-    * `:run` — the `kind: :modification` `Study.Run` record.
-  """
-  attr :run, :map, required: true
+  defp passage_role(%{"role" => role}), do: role
+  defp passage_role(%{role: role}), do: to_string(role)
+  defp passage_role(_), do: nil
 
-  def modification_panel(assigns) do
-    assigns =
-      assigns
-      |> assign(:original_lines, haiku_lines(assigns.run.original_haiku))
-      |> assign(:modified_lines, haiku_lines(assigns.run.modified_haiku))
+  defp passage_text(%{"text" => text}), do: text
+  defp passage_text(%{text: text}), do: text
+  defp passage_text(_), do: ""
 
-    ~H"""
-    <div class="space-y-6">
-      <section class="rounded-xl border border-base-300 p-4 space-y-3">
-        <h2 class="font-medium">Original-Haiku (Run {@run.source_run_index})</h2>
-        <pre class="whitespace-pre-wrap text-base-content/80"><span
-          :for={{line, idx} <- Enum.with_index(@original_lines)}
-          class={idx == @run.modified_line_index && "font-bold"}
-        >{line}<br /></span></pre>
-      </section>
+  # Non-empty candidate list only for AI passages flagged as fallbacks; nil otherwise.
+  defp passage_candidates(%{"fallback" => true, "candidates" => [_ | _] = candidates}),
+    do: candidates
 
-      <section class="rounded-xl border border-base-300 p-4 space-y-3">
-        <h2 class="font-medium">Modifiziertes Haiku</h2>
-        <pre class="whitespace-pre-wrap"><span
-          :for={{line, idx} <- Enum.with_index(@modified_lines)}
-          class={idx == @run.modified_line_index && "font-bold"}
-        >{line}<br /></span></pre>
-        <p class="text-xs text-base-content/50">{variant_label(@run.variant)}</p>
-      </section>
-    </div>
-    """
-  end
-
-  defp haiku_lines(nil), do: []
-  defp haiku_lines(haiku), do: String.split(haiku, "\n")
-
-  defp variant_label(:a), do: "Variante A: Ein Wort verändert"
-  defp variant_label(:b), do: "Variante B: Eine Zeile verändert"
-  defp variant_label(_), do: ""
+  defp passage_candidates(_), do: nil
 
   @doc "Whether the run's questionnaire has been answered."
   def likert_submitted?(run), do: map_size(run.likert || %{}) > 0
 
-  # `<.input type="select">` options as {label, value}, e.g. {"1 – Stimme gar nicht zu", "1"}.
+  # Radio options as {label, value}, e.g. {"1 – Stimme gar nicht zu", "1"}.
   defp likert_options do
     Enum.map(Likert.scale(), fn value ->
       {"#{value} – #{Map.fetch!(Likert.scale_labels(), value)}", value}

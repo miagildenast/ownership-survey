@@ -12,8 +12,10 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     {:ok, view, html} = live(conn, ~p"/dev/study/run/#{run.id}")
 
     assert html =~ "Schreib-Run"
-    # :free runs have no topic step — the first line sets the topic implicitly.
-    refute html =~ "Thema"
+    # :free runs have no assigned topic — the task message asks for a topic of
+    # the participant's own choice instead.
+    assert html =~ "Thema Ihrer Wahl"
+    refute html =~ "Jahreszeiten"
 
     view
     |> form("form[phx-submit=add_passage]", %{"text" => "Stille am Teich"})
@@ -25,6 +27,25 @@ defmodule OwnershipAshChatWeb.StudyWritingLiveTest do
     assert [%{"role" => "user", "text" => "Stille am Teich"}] = reloaded.transcript
     # Mounting began the run.
     refute is_nil(reloaded.started_at)
+  end
+
+  test "ignores blank and whitespace-only lines", %{conn: conn} do
+    run = generate(run(topic_source: :free, ai_mode: :without_ai))
+
+    {:ok, view, _html} = live(conn, ~p"/dev/study/run/#{run.id}")
+
+    for blank <- ["", "   "] do
+      view
+      |> form("form[phx-submit=add_passage]", %{"text" => blank})
+      |> render_submit()
+    end
+
+    assert render(view) =~ "Bitte gib eine Zeile ein."
+    assert Study.get_run!(run.id).transcript == []
+
+    # The notice clears itself after a timeout (fire the timer message directly).
+    send(view.pid, :clear_flash)
+    refute render(view) =~ "Bitte gib eine Zeile ein."
   end
 
   test "assigned/with_ai shows the topic and the AI's opening line on mount", %{conn: conn} do

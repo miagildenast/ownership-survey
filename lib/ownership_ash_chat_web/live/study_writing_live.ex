@@ -13,7 +13,6 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
   import OwnershipAshChatWeb.StudyComponents
 
   alias OwnershipAshChat.Study
-  alias OwnershipAshChat.Study.PingPong
 
   @impl true
   def mount(%{"run_id" => run_id}, _session, socket) do
@@ -27,8 +26,14 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
 
   @impl true
   def handle_event("add_passage", %{"text" => text}, socket) do
-    run = Study.add_user_passage!(socket.assigns.run, text)
-    {:noreply, assign_run(socket, run)}
+    case String.trim(text) do
+      "" ->
+        {:noreply, flash_blank_line(socket)}
+
+      text ->
+        run = Study.add_user_passage!(socket.assigns.run, text)
+        {:noreply, assign_run(socket, run)}
+    end
   end
 
   def handle_event("submit_likert", %{"likert" => answers}, socket) do
@@ -37,27 +42,26 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
     {:noreply, assign_run(socket, run)}
   end
 
+  @impl true
+  def handle_info(:clear_flash, socket), do: {:noreply, clear_flash(socket)}
+
+  # Blank-line notice that clears itself after a few seconds.
+  defp flash_blank_line(socket) do
+    Process.send_after(self(), :clear_flash, :timer.seconds(4))
+    put_flash(socket, :error, "Bitte gib eine Zeile ein.")
+  end
+
   defp assign_run(socket, run) do
     socket
     |> assign(:run, run)
-    |> assign(:line_count, line_count(run.transcript))
-    |> assign(:lines_done?, lines_done?(run))
-    |> assign(:can_add_passage?, can_add_passage?(run))
+    |> assign(:can_add_passage?, is_nil(run.completed_at))
   end
-
-  # A run holds exactly `PingPong.lines()` lines (3) regardless of `ai_mode`; once it
-  # is full it auto-completes, so no further passages are accepted.
-  defp can_add_passage?(run), do: is_nil(run.completed_at) and not lines_done?(run)
-
-  defp lines_done?(run), do: line_count(run.transcript) >= PingPong.lines()
-
-  defp line_count(transcript), do: length(transcript || [])
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="mx-auto max-w-2xl space-y-6">
+      <div class="space-y-6">
         <header class="space-y-1">
           <h1 class="text-2xl font-semibold">Schreib-Run (Dev)</h1>
           <p class="text-sm text-base-content/70">
@@ -65,13 +69,21 @@ defmodule OwnershipAshChatWeb.StudyWritingLive do
           </p>
         </header>
 
-        <.run_panel run={@run} can_add_passage?={@can_add_passage?} lines_done?={@lines_done?} />
+        <.chat_panel
+          :if={is_nil(@run.completed_at)}
+          run={@run}
+          can_add_passage?={@can_add_passage?}
+        />
 
         <p :if={@run.completed_at} class="text-sm text-success">
           Run abgeschlossen um {@run.completed_at}.
         </p>
 
-        <.likert_panel :if={@run.completed_at} run={@run} />
+        <.likert_screen :if={@run.completed_at && not likert_submitted?(@run)} run={@run} />
+
+        <p :if={@run.completed_at && likert_submitted?(@run)} class="text-sm text-success">
+          Fragebogen gespeichert.
+        </p>
       </div>
     </Layouts.app>
     """

@@ -16,18 +16,18 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: lib/ownership_ash_chat_web/components/layouts.ex:102
-#: lib/ownership_ash_chat_web/components/layouts.ex:117
+#: lib/ownership_ash_chat_web/components/layouts.ex:103
+#: lib/ownership_ash_chat_web/components/layouts.ex:118
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
 
-#: lib/ownership_ash_chat_web/components/layouts.ex:109
+#: lib/ownership_ash_chat_web/components/layouts.ex:110
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
 
-#: lib/ownership_ash_chat_web/components/layouts.ex:94
+#: lib/ownership_ash_chat_web/components/layouts.ex:95
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""

@@ -31,44 +31,45 @@ defmodule OwnershipAshChatWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
+  attr :max_width, :string,
+    default: "max-w-2xl",
+    doc: "Tailwind max-width class for the main content column"
+
+  attr :fullscreen, :boolean,
+    default: false,
+    doc: "pin the layout to the viewport height (100dvh) — content manages its own scrolling"
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href={~p"/"} class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
+    <div class={["flex flex-col", @fullscreen && "h-dvh overflow-hidden"]}>
+      <header class="navbar shrink-0 border-b border-base-300 px-4 sm:px-6 lg:px-8">
+        <div class="flex-1">
+          <a href={~p"/"} class="flex w-fit items-center gap-2">
+            <span class="font-semibold">{OwnershipAshChatWeb.StudyTexts.title()}</span>
+          </a>
+        </div>
+        <div class="flex-none">
+          <.theme_toggle />
+        </div>
+      </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
+      <main class={[
+        "px-4 sm:px-6 lg:px-8",
+        if(@fullscreen, do: "min-h-0 flex-1 py-4", else: "py-6 sm:py-10")
+      ]}>
+        <div class={[
+          "mx-auto w-full space-y-4",
+          @max_width,
+          @fullscreen && "flex h-full min-h-0 flex-col"
+        ]}>
+          {render_slot(@inner_block)}
+        </div>
+      </main>
 
-    <.flash_group flash={@flash} />
+      <.flash_group flash={@flash} />
+    </div>
     """
   end
 
