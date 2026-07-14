@@ -9,6 +9,9 @@ environment=
     # `--remove-prefix`, see README). Omit or set "/" to serve at the domain root.
     URL_PATH="/ownership-survey",
     DATABASE_PATH=/home/USER/ownership_ash_chat/ownership_ash_chat_prod.db,
+    # Study config read from the rsync'd source tree (NOT the baked release), so
+    # content updates hot-reload without a rebuild. See bin/deploy_config.sh.
+    STUDY_CONFIG_PATH=/home/USER/ownership_ash_chat/priv/study/config.yml,
     SECRET_KEY_BASE="!! generate with: mix phx.gen.secret !!",
     TOKEN_SIGNING_SECRET="!! generate with: mix phx.gen.secret !!",
     # LLM backend — must match whichever option is uncommented in config/runtime.exs.

@@ -70,6 +70,15 @@ llm_config =
 
 config :ownership_ash_chat, :llm, llm_config
 
+# Study config file location override. Point this at a stable path OUTSIDE the
+# baked release (e.g. the rsync'd source tree) so content updates to config.yml
+# can be shipped + hot-reloaded (`OwnershipAshChat.Study.Config.reload/0`)
+# without a `mix release` rebuild. Unset → falls back to the release's baked
+# priv/study/config.yml. See bin/deploy_config.sh.
+if study_config_path = System.get_env("STUDY_CONFIG_PATH") do
+  config :ownership_ash_chat, :study_config_path, study_config_path
+end
+
 # Runtime log-level override. Prod compiles at :info (config/prod.exs); set
 # LOG_LEVEL=debug on the host (e.g. Uberspace) to surface ping-pong retry logs
 # without a redeploy. Runs after prod.exs, so it wins.
