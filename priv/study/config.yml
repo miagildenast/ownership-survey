@@ -10,15 +10,28 @@
 # Placeholders replaced at call sites: {topic}, {line1}, {line2}, {original_line},
 # {line_no}, {target}, {rejected_line}, {count}, {change}.
 
-title: "Dein, mein, unser? [Untertitel folgt]"
+title: "Dein, mein, unser? Eine Studie zu kreativem Schreiben, KI und Ideenursprung"
 
 intro:
-  heading: "Willkommen zur Studie"
+  heading: "Anleitung für Ihre Schreibaufgabe"
   body: |
-    Sie schreiben in dieser Studie vier kurze Haikus – teilweise gemeinsam mit
-    einer KI, teilweise allein. Nach jeder Runde beantworten Sie einen kurzen
-    Fragebogen. Zum Abschluss sehen Sie eine KI-Überarbeitung eines Ihrer
-    Haikus und bewerten auch diese. Klicken Sie auf **Start**, um zu beginnen.
+    Im Rahmen dieser Studie werden Sie 4 Haikus verfassen. Ein Haiku ist eine kurze japanische Gedichtform, die heute weltweit verbreitet ist. Ein Haiku besteht traditionell aus drei Zeilen mit dem Silbenmuster 5–7–5: Die erste Zeile enthält 5 Silben, die zweite Zeile 7 Silben und die dritte Zeile wieder 5 Silben. 
+
+    Dabei ist nicht die Anzahl der Wörter entscheidend, sondern ausschließlich die Anzahl der Silben. Haikus müssen sich nicht reimen und sind im Präsens (Gegenwart) geschrieben und nehmen häufig Bezug zur Natur oder den Jahreszeiten. 
+
+    Die folgenden Beispiele zeigen deutsche Haikus. Hinter jeder Zeile ist zusätzlich angegeben, aus wie vielen Silben die jeweilige Zeile besteht, um das typische 5–7–5-Muster zu verdeutlichen.
+
+    > Sonnenuntergang. (Son-nen-un-ter-gang -> 5 Silben)  
+    > Die leuchtenden Gesichter (Die leuch-ten-den Ge-sich-ter -> 7 Silben)  
+    > verblassen wieder. (Ver-blas-sen wie-der -> 5 Silben)
+
+    – [Udo Wenzel](https://www.haiku-heute.de/archiv/haiku-gute-beispiele/)
+
+    > Wolken am Hügel – (Wol-ken am Hü-gel -> 5 Silben)  
+    > der Hund des Schäfers treibt sie (der Hund des Schä-fers treibt sie -> 7 Silben)  
+    > höher und höher. (H-her und hö-her -> 5 Silbend)
+
+    – [Reiner Bonack](https://www.haiku-heute.de/archiv/haiku-gute-beispiele/)
 
 # Participant-facing guidance in the chat, per condition and 0-based line position.
 # An absent (topic_source, ai_mode, position) combination yields no task message.
@@ -26,35 +39,44 @@ task_messages:
   - topic_source: assigned
     ai_mode: without_ai
     position: 0
-    text: "Schreiben Sie ein Haiku zum Thema „{topic}“. Beginnen Sie mit der ersten Zeile."
+    text: >
+      Schreiben Sie zu folgendem Thema ein deutsches Haiku mit der Silbenstruktur 5–7–5: „{topic}“.
+
+      Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
   - topic_source: free
     ai_mode: without_ai
     position: 0
     text: >
-      Schreiben Sie ein Haiku zu einem Thema **Ihrer Wahl**. Beginnen Sie mit der ersten Zeile.
+      Schreiben Sie ein deutsches Haiku mit der Silbenstruktur 5–7–5. Sie dürfen dabei das Thema selbst entscheiden und müssen sich nicht an die klassischen Haikuthemen halten. 
+
+      Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
   # assigned/with_ai is [AI, user, AI]: the AI opens with line 1. This guidance is
   # shown at position 0 — first, above the AI's opening line — to frame the run.
   - topic_source: assigned
     ai_mode: with_ai
     position: 0
     text: >
-      Die KI hat die erste Zeile zum Thema „{topic}“ geschrieben.
-      Schreiben Sie nun die zweite Zeile – die dritte Zeile ergänzt die KI.
+      Die KI hat Ihnen die erste Zeile zu einem Haiku zum Thema „{topic}“ generiert. Schreiben Sie die zweite Zeile mit 7 Silben. Die KI wird Ihnen danach die dritte Zeile des Haikus generieren (dies kann einen kleinen Moment dauern). 
+
+      Wenn die dritte Zeile generiert wurde, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
   - topic_source: free
     ai_mode: with_ai
     position: 0
     text: >
-      Schreiben Sie die erste Zeile eines Haikus zu einem Thema Ihrer Wahl –
-      die nächste Zeile wird die KI generieren.
+      Schreiben Sie zuerst nur die erste Zeile eines deutschen Haikus mit 5 Silben. Sie dürfen dabei das Thema selbst entscheiden und müssen sich nicht an klassische Haikuthemen halten. Die KI wird ihnen die zweite Zeile generieren (dies kann einen kleinen Moment dauern). Schreiben Sie danach nur die dritte Zeile des Haikus mit 5 Silben. 
+
+      Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
 
 # 5-7-5 syllable targets, indexed by 0-based line position.
 syllable_targets: [5, 7, 5]
 
 llm:
   system_preamble: |
+    I am conducting a study on AI, creative writing and Ownership.
     You are a text generation component used in a scientific experiment.
+    Your task is to write single lines in haikus.
     Follow the instructions exactly.
-    Your FINAL answer must contain only the requested text — no explanations,
+    Your FINAL answer must contain only the requested text – no explanations,
     comments, formatting notes, or additional content.
     You may reason internally before producing the final answer; that reasoning
     is not part of the final answer.
@@ -162,18 +184,26 @@ questionnaire:
       - value: 5
         label: "Stimme voll zu"
   items:
-    - key: zufriedenheit
-      prompt: "Ich bin mit dem entstandenen Haiku zufrieden."
-    - key: freude
-      prompt: "Das Schreiben hat mir Freude bereitet."
-    - key: fluss
-      prompt: "Ich konnte mühelos im Schreibfluss bleiben."
+    - key: self-identiy
+      prompt: "Dieses Haiku spiegelt wieder, wer ich bin."
+    - key: self-efficacy
+      prompt: "Ich hatte das Gefühl, die Entstehung dieses Haikus erfolgreich beeinflussen zu können."
+    - key: autonomy
+      prompt: "Ich konnte frei entscheiden, wie dieses Haiku gestaltet wird."
+    - key: territoriality
+      prompt: "Ich betrachte dieses Haiku als mein Werk."
+    - key: accountabilit-and-responsibility
+      prompt: "Ich fühle mich für den Inhalt des Haikus verantwortlich."
+    - key: liking
+      prompt: "Wie sehr magst du dieses Haiku?"
+    - key: authorship
+      prompt: "Ich fühle mich als Autor:in dieses Haikus."
   # Shown ONLY on the modification run's questionnaire, after the Likert items.
   open_questions:
-    - key: begruendung
-      prompt: "Bitte begründen Sie Ihre Bewertung der KI-Überarbeitung."
-    - key: anmerkungen
-      prompt: "Haben Sie weitere Anmerkungen zur Überarbeitung?"
+    - key: Mitteilungen
+      prompt: "Möchten Sie noch etwas zu Ihrer Teilnahme an der Studie mitteilen?"
+    - key: Anmerkungen
+      prompt: "Haben Sie Anmerkungen oder Feedback zur Studie?"
 
 screens:
   pre_modification:
@@ -182,7 +212,6 @@ screens:
       Alle vier Runs wurden abgeschlossen. Im nächsten Schritt sehen Sie eine
       **KI-Modifikation** Ihres besten Haikus und bewerten sie kurz.
   all_done:
-    heading: "Studie abgeschlossen"
+    heading: "Fast geschafft!"
     body: |
-      Vielen Dank! Bitte kopieren Sie Ihre Sitzungs-ID und geben Sie sie im
-      Fragebogen-Tool ein:
+      Vielen Dank für Ihre Teilnahme! Bitte kopieren Sie diesen Code und fügenn Sie ihn im Fragebogen-Tool ein:
