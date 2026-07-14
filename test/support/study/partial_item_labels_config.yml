@@ -1,0 +1,43 @@
+# Valid study config EXCEPT: a questionnaire item overrides scale labels but does
+# not cover the full 1..5 scale. Config.load!/1 must reject this.
+title: "t"
+intro:
+  heading: "Willkommen"
+  body: "Text"
+task_messages: []
+syllable_targets: [5, 7, 5]
+llm:
+  system_preamble: "x"
+  retry_suffix: "x"
+  line_prompts:
+    - position: 0
+      template: "x"
+  modification:
+    base: "x"
+    change_descriptions:
+      a: "x"
+      b: "x"
+questionnaire:
+  haiku_intro:
+    before: "b"
+    after: "a"
+  scale:
+    min: 1
+    max: 5
+    labels:
+      - value: 1
+        label: "x"
+  items:
+    - key: k
+      prompt: "p"
+      labels:
+        - value: 1
+          label: "only one"
+  open_questions: []
+screens:
+  pre_modification:
+    heading: "h"
+    body: "b"
+  all_done:
+    heading: "h"
+    body: "b"

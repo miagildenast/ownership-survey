@@ -15,6 +15,16 @@ defmodule OwnershipAshChat.Study.Config.Schema do
   transformation can resolve each nested type at compile time.
   """
 
+  defmodule ScaleLabel do
+    @moduledoc false
+    use Ash.TypedStruct
+
+    typed_struct do
+      field :value, :integer, allow_nil?: false
+      field :label, :string, allow_nil?: false
+    end
+  end
+
   defmodule LikertItem do
     @moduledoc false
     use Ash.TypedStruct
@@ -22,6 +32,9 @@ defmodule OwnershipAshChat.Study.Config.Schema do
     typed_struct do
       field :key, :string, allow_nil?: false
       field :prompt, :string, allow_nil?: false
+      # Optional per-item scale-label override. When present, must cover the full
+      # scale (one label per value); enforced in `Config.normalize/1`.
+      field :labels, {:array, ScaleLabel}, allow_nil?: true
     end
   end
 
@@ -32,16 +45,6 @@ defmodule OwnershipAshChat.Study.Config.Schema do
     typed_struct do
       field :key, :string, allow_nil?: false
       field :prompt, :string, allow_nil?: false
-    end
-  end
-
-  defmodule ScaleLabel do
-    @moduledoc false
-    use Ash.TypedStruct
-
-    typed_struct do
-      field :value, :integer, allow_nil?: false
-      field :label, :string, allow_nil?: false
     end
   end
 

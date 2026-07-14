@@ -202,6 +202,19 @@ questionnaire:
       prompt: "Ich fühle mich für den Inhalt des Haikus verantwortlich."
     - key: liking
       prompt: "Wie sehr magst du dieses Haiku?"
+      # Per-item scale-label override. Must cover the full scale (one label per
+      # value) or config load fails; see OwnershipAshChat.Study.Config.
+      labels:
+        - value: 1
+          label: "Mag ich überhaupt nicht"
+        - value: 2
+          label: "Mag ich eher nicht"
+        - value: 3
+          label: "Teils/Teils"
+        - value: 4
+          label: "Mag ich"
+        - value: 5
+          label: "Mag ich sehr"
     - key: authorship
       prompt: "Ich fühle mich als Autor:in dieses Haikus."
   # Shown ONLY on the modification run's questionnaire, after the Likert items.

@@ -28,7 +28,7 @@ defmodule OwnershipAshChat.Study.ConfigTest do
     end
 
     test "questionnaire items, scale and open questions are present" do
-      assert [%{key: k, prompt: p} | _] = Config.likert_items()
+      assert [%{key: k, prompt: p, labels: _} | _] = Config.likert_items()
       assert is_binary(k) and is_binary(p)
       assert Config.likert_scale() == 1..5
       assert Config.likert_scale_labels()[1] |> is_binary()
@@ -38,6 +38,17 @@ defmodule OwnershipAshChat.Study.ConfigTest do
     test "questionnaire haiku intro exposes before/after copy" do
       assert %{before: before, after: aft} = Config.haiku_intro()
       assert is_binary(before) and is_binary(aft)
+    end
+
+    test "an item can override scale labels over the full scale; others fall back" do
+      items = Map.new(Config.likert_items(), &{&1.key, &1.labels})
+
+      # The fixture's overriding item carries a full value => label map…
+      override = Enum.find_value(items, fn {_k, labels} -> labels end)
+      assert map_size(override) == Enum.count(Config.likert_scale())
+
+      # …while at least one item has no per-item labels (uses the global set).
+      assert Enum.any?(items, fn {_k, labels} -> is_nil(labels) end)
     end
 
     test "llm prompts and modification templates are present" do
@@ -92,6 +103,19 @@ defmodule OwnershipAshChat.Study.ConfigTest do
         end
 
       assert Exception.message(error) =~ "title"
+    end
+
+    test "rejects an item whose label override does not cover the full scale" do
+      error =
+        assert_raise RuntimeError, fn ->
+          Config.load!("test/support/study/partial_item_labels_config.yml")
+        end
+
+      assert Exception.message(error) =~ "label per scale value"
+    after
+      # The failing load raises before caching, but reload the real config so any
+      # later-ordered test still sees valid accessors.
+      Config.reload()
     end
 
     test "reload/0 round-trips the real config without changing accessors" do

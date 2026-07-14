@@ -282,9 +282,6 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   def likert_screen(assigns) do
     scale = Likert.scale()
-    scale_labels = Likert.scale_labels()
-    likert_min = Enum.min(scale)
-    likert_max = Enum.max(scale)
 
     assigns =
       assigns
@@ -292,10 +289,6 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       |> assign(:haiku_intro, StudyTexts.haiku_intro())
       |> assign(:likert_items, Likert.items())
       |> assign(:likert_scale, scale)
-      |> assign(:likert_min, likert_min)
-      |> assign(:likert_max, likert_max)
-      |> assign(:likert_min_label, "#{likert_min} – #{Map.fetch!(scale_labels, likert_min)}")
-      |> assign(:likert_max_label, "#{likert_max} – #{Map.fetch!(scale_labels, likert_max)}")
       |> assign(:open_questions, open_questions_for(assigns.run))
 
     ~H"""
@@ -346,8 +339,8 @@ defmodule OwnershipAshChatWeb.StudyComponents do
             />
           </div>
           <div class="flex justify-between text-xs text-base-content/70">
-            <span>{@likert_min_label}</span>
-            <span>{@likert_max_label}</span>
+            <span>{likert_endpoint_label(item, :min)}</span>
+            <span>{likert_endpoint_label(item, :max)}</span>
           </div>
         </fieldset>
       </section>
@@ -411,6 +404,16 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   @doc "Whether the run's questionnaire has been answered."
   def likert_submitted?(run), do: map_size(run.likert || %{}) > 0
+
+  # Endpoint label ("1 – …" / "5 – …") shown under the horizontal scale. Uses the
+  # item's per-item label override when present, else the global scale labels.
+  defp likert_endpoint_label(item, which) do
+    labels = item.labels || Likert.scale_labels()
+    scale = Likert.scale()
+    value = if which == :min, do: Enum.min(scale), else: Enum.max(scale)
+
+    "#{value} – #{Map.fetch!(labels, value)}"
+  end
 
   defp likert_value(run, key), do: Map.get(run.likert || %{}, Atom.to_string(key))
 end

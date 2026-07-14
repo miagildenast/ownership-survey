@@ -117,6 +117,8 @@ defmodule OwnershipAshChat.Study.Config do
 
   # Fold the validated schema struct into the flat lookup maps the accessors use.
   defp normalize(%StudyConfig{} = c) do
+    scale_values = Enum.to_list(c.questionnaire.scale.min..c.questionnaire.scale.max)
+
     %{
       title: c.title,
       intro_heading: c.intro.heading,
@@ -137,7 +139,7 @@ defmodule OwnershipAshChat.Study.Config do
         before: c.questionnaire.haiku_intro.before,
         after: c.questionnaire.haiku_intro.after
       },
-      likert_items: Enum.map(c.questionnaire.items, &%{key: &1.key, prompt: &1.prompt}),
+      likert_items: Enum.map(c.questionnaire.items, &normalize_item(&1, scale_values)),
       open_questions:
         Enum.map(c.questionnaire.open_questions, &%{key: &1.key, prompt: &1.prompt}),
       scale_min: c.questionnaire.scale.min,
@@ -152,4 +154,23 @@ defmodule OwnershipAshChat.Study.Config do
 
   defp screen_map(%{heading: heading, body: body, skip: skip}),
     do: %{heading: heading, body: body, skip: skip}
+
+  # A questionnaire item, with its optional per-item scale-label override folded
+  # into a `value => label` map (or `nil` to fall back to the global labels).
+  defp normalize_item(item, scale_values),
+    do: %{key: item.key, prompt: item.prompt, labels: item_labels!(item, scale_values)}
+
+  defp item_labels!(%{labels: nil}, _scale_values), do: nil
+
+  defp item_labels!(%{key: key, labels: labels}, scale_values) do
+    map = Map.new(labels, &{&1.value, &1.label})
+
+    if MapSet.equal?(MapSet.new(Map.keys(map)), MapSet.new(scale_values)) do
+      map
+    else
+      raise "Study config questionnaire item #{inspect(key)}: when scale labels are " <>
+              "overridden, exactly one label per scale value " <>
+              "(#{Enum.min(scale_values)}..#{Enum.max(scale_values)}) must be given"
+    end
+  end
 end

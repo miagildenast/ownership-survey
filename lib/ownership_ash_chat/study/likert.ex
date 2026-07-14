@@ -17,8 +17,12 @@ defmodule OwnershipAshChat.Study.Likert do
 
   alias OwnershipAshChat.Study.Config
 
-  @doc "The questionnaire items as `[%{key: atom, prompt: String.t()}]`, in order."
-  def items, do: Enum.map(Config.likert_items(), &to_atom_keyed/1)
+  @doc """
+  The questionnaire items as `[%{key: atom, prompt: String.t(), labels: map | nil}]`,
+  in order. `labels` is a per-item `value => label` override (covering the full
+  scale) or `nil` to use the global `scale_labels/0`.
+  """
+  def items, do: Enum.map(Config.likert_items(), &to_item/1)
 
   @doc "Item keys as atoms, in order."
   def keys, do: Enum.map(Config.likert_items(), &String.to_atom(&1.key))
@@ -40,6 +44,9 @@ defmodule OwnershipAshChat.Study.Likert do
 
   @doc "Open-question keys as strings (the stored/exported form), in order."
   def open_string_keys, do: Enum.map(Config.open_questions(), & &1.key)
+
+  defp to_item(%{key: key, prompt: prompt, labels: labels}),
+    do: %{key: String.to_atom(key), prompt: prompt, labels: labels}
 
   defp to_atom_keyed(%{key: key, prompt: prompt}),
     do: %{key: String.to_atom(key), prompt: prompt}

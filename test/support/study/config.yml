@@ -175,6 +175,19 @@ questionnaire:
   items:
     - key: zufriedenheit
       prompt: "Ich bin mit dem entstandenen Haiku zufrieden."
+      # Per-item scale-label override (must cover the full scale). Other items
+      # omit `labels` and fall back to the global scale labels above.
+      labels:
+        - value: 1
+          label: "Ganz und gar nicht"
+        - value: 2
+          label: "Eher nicht"
+        - value: 3
+          label: "Teils/teils"
+        - value: 4
+          label: "Eher schon"
+        - value: 5
+          label: "Voll und ganz"
     - key: freude
       prompt: "Das Schreiben hat mir Freude bereitet."
     - key: fluss
