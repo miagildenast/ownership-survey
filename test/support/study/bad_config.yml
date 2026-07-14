@@ -16,6 +16,9 @@ llm:
       a: "x"
       b: "x"
 questionnaire:
+  haiku_intro:
+    before: "x"
+    after: "x"
   scale:
     min: 1
     max: 5

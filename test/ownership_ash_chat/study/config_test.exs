@@ -35,6 +35,11 @@ defmodule OwnershipAshChat.Study.ConfigTest do
       assert length(Config.open_questions()) >= 1
     end
 
+    test "questionnaire haiku intro exposes before/after copy" do
+      assert %{before: before, after: aft} = Config.haiku_intro()
+      assert is_binary(before) and is_binary(aft)
+    end
+
     test "llm prompts and modification templates are present" do
       assert Config.system_preamble() =~ "experiment"
       assert Config.line_prompt(0) =~ "{topic}"

@@ -140,12 +140,23 @@ defmodule OwnershipAshChat.Study.Config.Schema do
     end
   end
 
+  defmodule HaikuIntro do
+    @moduledoc false
+    use Ash.TypedStruct
+
+    typed_struct do
+      field :before, :string, allow_nil?: false
+      field :after, :string, allow_nil?: false
+    end
+  end
+
   defmodule Questionnaire do
     @moduledoc false
     use Ash.TypedStruct
 
     typed_struct do
       field :scale, Scale, allow_nil?: false
+      field :haiku_intro, HaikuIntro, allow_nil?: false
       field :items, {:array, LikertItem}, allow_nil?: false, constraints: [min_length: 1]
       field :open_questions, {:array, OpenQuestion}, allow_nil?: false
     end

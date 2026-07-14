@@ -21,6 +21,13 @@ defmodule OwnershipAshChatWeb.StudyTexts do
   def intro_text, do: Config.intro_text()
 
   @doc """
+  The questionnaire's haiku framing copy as `%{before:, after:}` (Markdown), shown
+  above and below the haiku on the post-run questionnaire screen. Either part may be
+  blank to omit it.
+  """
+  def haiku_intro, do: Config.haiku_intro()
+
+  @doc """
   The task message guiding the participant's next line, as a pure function of the
   run's condition (`topic_source` × `ai_mode`) and how many transcript lines exist.
 

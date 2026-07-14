@@ -280,14 +280,27 @@ defmodule OwnershipAshChatWeb.StudyComponents do
     assigns =
       assigns
       |> assign(:haiku, likert_haiku(assigns.run))
+      |> assign(:haiku_intro, StudyTexts.haiku_intro())
       |> assign(:likert_items, Likert.items())
       |> assign(:likert_options, likert_options())
       |> assign(:open_questions, open_questions_for(assigns.run))
 
     ~H"""
     <.form for={%{}} id="likert-form" phx-submit="submit_likert" class="space-y-6">
-      <section class="rounded-xl border border-base-300 p-4 md:p-6">
+      <section class="rounded-xl border border-base-300 p-4 space-y-4 md:p-6">
+        <div
+          :if={present?(@haiku_intro.before)}
+          class="prose prose-sm dark:prose-invert max-w-none text-base-content/80"
+        >
+          {Markdown.to_html(@haiku_intro.before)}
+        </div>
         <pre class="whitespace-pre-wrap text-center text-lg leading-relaxed">{@haiku}</pre>
+        <div
+          :if={present?(@haiku_intro.after)}
+          class="prose prose-sm dark:prose-invert max-w-none text-base-content/80"
+        >
+          {Markdown.to_html(@haiku_intro.after)}
+        </div>
       </section>
 
       <section class="rounded-xl border border-base-300 p-4 space-y-4 md:p-6">
@@ -350,6 +363,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   defp likert_haiku(%{kind: :modification} = run), do: run.modified_haiku
   defp likert_haiku(run), do: run.final_haiku
+
+  # Whether an optional copy string is set and non-blank.
+  defp present?(text), do: is_binary(text) and String.trim(text) != ""
 
   # Open-ended questions are asked only on the modification run.
   defp open_questions_for(%{kind: :modification}), do: Likert.open_questions()

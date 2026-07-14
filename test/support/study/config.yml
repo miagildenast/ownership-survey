@@ -154,6 +154,10 @@ llm:
       b: "Replace line {line_no} entirely with a new line."
 
 questionnaire:
+  # Framing copy shown on the post-run questionnaire, around the haiku (Markdown).
+  haiku_intro:
+    before: "Folgendes Haiku ist im Rahmen der Studie entstanden:"
+    after: "Füllen Sie den Fragebogen basierend auf diesem Haiku aus."
   scale:
     min: 1
     max: 5

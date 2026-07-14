@@ -74,6 +74,9 @@ defmodule OwnershipAshChat.Study.Config do
   @doc "Questionnaire items as `[%{key: String.t(), prompt: String.t()}]`, in order."
   def likert_items, do: fetch(:likert_items)
 
+  @doc "Questionnaire haiku framing copy as `%{before:, after:}` (Markdown strings)."
+  def haiku_intro, do: fetch(:haiku_intro)
+
   @doc "Open-ended questions (modification run) as `[%{key:, prompt:}]`, in order."
   def open_questions, do: fetch(:open_questions)
 
@@ -126,6 +129,10 @@ defmodule OwnershipAshChat.Study.Config do
       modification_change: %{
         a: c.llm.modification.change_descriptions.a,
         b: c.llm.modification.change_descriptions.b
+      },
+      haiku_intro: %{
+        before: c.questionnaire.haiku_intro.before,
+        after: c.questionnaire.haiku_intro.after
       },
       likert_items: Enum.map(c.questionnaire.items, &%{key: &1.key, prompt: &1.prompt}),
       open_questions:
