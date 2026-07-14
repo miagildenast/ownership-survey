@@ -3,10 +3,11 @@ defmodule OwnershipAshChat.Study.ConfigTest do
 
   alias OwnershipAshChat.Study.Config
 
-  # The application boots the real priv/study/config.yml, so the accessors below
-  # read that already-loaded configuration.
+  # The application boots the test fixture (test/support/study/config.yml, wired via
+  # `study_config_path` in config/test.exs), so the accessors below read that
+  # already-loaded configuration — never the real priv/study/config.yml.
 
-  describe "accessors (real config)" do
+  describe "accessors (fixture config)" do
     test "exposes the title and intro" do
       assert is_binary(Config.title())
       assert is_binary(Config.intro_heading())

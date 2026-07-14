@@ -1,0 +1,195 @@
+# TEST FIXTURE study config — a stable, self-contained copy used by the whole test
+# suite (wired via `study_config_path` in config/test.exs). Tests assert against the
+# keys and copy in THIS file, never the real priv/study/config.yml, so editing the
+# live study copy can never break the suite. Keep the questionnaire keys
+# (zufriedenheit/freude/fluss, begruendung/anmerkungen), scale (1..5) and the intro/
+# task strings the tests match in sync with the test expectations.
+#
+# Study configuration — the single source of truth for all participant-facing
+# copy and every LLM prompt. Edit this file to change the study; it is loaded and
+# validated once at application boot (see OwnershipAshChat.Study.Config).
+#
+# Long-form texts (intro body, task message texts, questionnaire prompts, screen
+# bodies) support Markdown and are rendered as HTML in the UI. The `llm.*` prompts
+# are NOT Markdown — they are sent to the model verbatim (after {placeholder}
+# substitution).
+#
+# Placeholders replaced at call sites: {topic}, {line1}, {line2}, {original_line},
+# {line_no}, {target}, {rejected_line}, {count}, {change}.
+
+title: "Dein, mein, unser? [Untertitel folgt]"
+
+intro:
+  heading: "Willkommen zur Studie"
+  body: |
+    Sie schreiben in dieser Studie vier kurze Haikus – teilweise gemeinsam mit
+    einer KI, teilweise allein. Nach jeder Runde beantworten Sie einen kurzen
+    Fragebogen. Zum Abschluss sehen Sie eine KI-Überarbeitung eines Ihrer
+    Haikus und bewerten auch diese. Klicken Sie auf **Start**, um zu beginnen.
+
+# Participant-facing guidance in the chat, per condition and 0-based line position.
+# An absent (topic_source, ai_mode, position) combination yields no task message.
+task_messages:
+  - topic_source: assigned
+    ai_mode: without_ai
+    position: 0
+    text: "Schreiben Sie ein Haiku zum Thema „{topic}“. Beginnen Sie mit der ersten Zeile."
+  - topic_source: free
+    ai_mode: without_ai
+    position: 0
+    text: >
+      Schreiben Sie ein Haiku zu einem Thema **Ihrer Wahl**. Beginnen Sie mit der ersten Zeile.
+  # assigned/with_ai is [AI, user, AI]: the AI opens with line 1. This guidance is
+  # shown at position 0 — first, above the AI's opening line — to frame the run.
+  - topic_source: assigned
+    ai_mode: with_ai
+    position: 0
+    text: >
+      Die KI hat die erste Zeile zum Thema „{topic}“ geschrieben.
+      Schreiben Sie nun die zweite Zeile – die dritte Zeile ergänzt die KI.
+  - topic_source: free
+    ai_mode: with_ai
+    position: 0
+    text: >
+      Schreiben Sie die erste Zeile eines Haikus zu einem Thema Ihrer Wahl –
+      die nächste Zeile wird die KI generieren.
+
+# 5-7-5 syllable targets, indexed by 0-based line position.
+syllable_targets: [5, 7, 5]
+
+llm:
+  system_preamble: |
+    You are a text generation component used in a scientific experiment.
+    Follow the instructions exactly.
+    Your FINAL answer must contain only the requested text — no explanations,
+    comments, formatting notes, or additional content.
+    You may reason internally before producing the final answer; that reasoning
+    is not part of the final answer.
+    The output language is German unless explicitly stated otherwise.
+
+  # Appended to any base prompt on a retry. Shared by all line + modification retries.
+  retry_suffix: |
+
+    Your previous attempt „{rejected_line}“ had {count} syllables, but the line
+    must have EXACTLY {target} syllables. Write a DIFFERENT version.
+
+  # Full base prompts per 0-based line position. {target} comes from syllable_targets.
+  line_prompts:
+    - position: 0
+      template: |
+        Generate the first line of a German haiku on the topic „{topic}“.
+
+        Constraints:
+        - Output exactly one line.
+        - Output language: German.
+        - Do not add quotation marks.
+        - Do not add explanations.
+        - Do not add any text before or after the line.
+        - The line must contain EXACTLY {target} syllables.
+        - NEVER return a line with more or fewer than {target} syllables.
+        - Before answering, split every word into syllables and count them.
+        - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
+        - Return only the first line.
+    - position: 1
+      template: |
+        Generate the second line of a German haiku.
+
+        First line:
+        „{line1}“
+
+        Constraints:
+        - Output exactly one line.
+        - Output language: German.
+        - Do not add quotation marks.
+        - Do not add explanations.
+        - Do not add any text before or after the line.
+        - The line must contain EXACTLY {target} syllables.
+        - NEVER return a line with more or fewer than {target} syllables.
+        - Before answering, split every word into syllables and count them.
+        - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
+        - Return only the second line.
+    - position: 2
+      template: |
+        Generate the third line of a German haiku.
+
+        First line:
+        „{line1}“
+
+        Second line:
+        „{line2}“
+
+        Constraints:
+        - Output exactly one line.
+        - Output language: German.
+        - Do not add quotation marks.
+        - Do not add explanations.
+        - Do not add any text before or after the line.
+        - The line must contain EXACTLY {target} syllables.
+        - NEVER return a line with more or fewer than {target} syllables.
+        - Before answering, split every word into syllables and count them.
+        - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
+        - Return only the third line.
+
+  modification:
+    # {change} is filled from change_descriptions[variant]; {line_no} = line_index + 1.
+    base: |
+      Here is a German haiku:
+
+      {haiku}
+
+      Modify only line {line_no}: „{original_line}“
+      Modification: {change}
+
+      Constraints:
+      - Output language: German.
+      - Output ONLY the new version of line {line_no} — a single line.
+      - Keep the other lines out of your answer.
+      - The new line must contain EXACTLY {target} syllables.
+      - NEVER return a line with more or fewer than {target} syllables.
+      - Before answering, split every word into syllables and count them.
+      - Do not mark syllable boundaries in the output: no hyphens inside words, write every word normally.
+      - Do not add quotation marks, explanations, or any additional text.
+    change_descriptions:
+      a: "Change exactly one word in line {line_no}."
+      b: "Replace line {line_no} entirely with a new line."
+
+questionnaire:
+  scale:
+    min: 1
+    max: 5
+    labels:
+      - value: 1
+        label: "Stimme gar nicht zu"
+      - value: 2
+        label: "Stimme eher nicht zu"
+      - value: 3
+        label: "Teils/teils"
+      - value: 4
+        label: "Stimme eher zu"
+      - value: 5
+        label: "Stimme voll zu"
+  items:
+    - key: zufriedenheit
+      prompt: "Ich bin mit dem entstandenen Haiku zufrieden."
+    - key: freude
+      prompt: "Das Schreiben hat mir Freude bereitet."
+    - key: fluss
+      prompt: "Ich konnte mühelos im Schreibfluss bleiben."
+  # Shown ONLY on the modification run's questionnaire, after the Likert items.
+  open_questions:
+    - key: begruendung
+      prompt: "Bitte begründen Sie Ihre Bewertung der KI-Überarbeitung."
+    - key: anmerkungen
+      prompt: "Haben Sie weitere Anmerkungen zur Überarbeitung?"
+
+screens:
+  pre_modification:
+    heading: "Schreibphase abgeschlossen"
+    body: |
+      Alle vier Runs wurden abgeschlossen. Im nächsten Schritt sehen Sie eine
+      **KI-Modifikation** Ihres besten Haikus und bewerten sie kurz.
+  all_done:
+    heading: "Studie abgeschlossen"
+    body: |
+      Vielen Dank! Bitte kopieren Sie Ihre Sitzungs-ID und geben Sie sie im
+      Fragebogen-Tool ein:

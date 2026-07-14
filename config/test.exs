@@ -8,6 +8,11 @@ config :ownership_ash_chat,
   ping_pong_lines: 3,
   study_responder: {OwnershipAshChat.Study.PingPongStub, :reply}
 
+# Tests run against a stable fixture config, not the real priv/study/config.yml, so
+# editing the live study copy can never break the suite (see the fixture header).
+config :ownership_ash_chat,
+  study_config_path: "test/support/study/config.yml"
+
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Configure your database
