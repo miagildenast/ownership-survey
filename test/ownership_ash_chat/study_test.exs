@@ -466,17 +466,21 @@ defmodule OwnershipAshChat.StudyTest do
                Study.submit_likert(run, %{likert: @likert, open_answers: %{"begruendung" => "x"}})
     end
 
-    test "a modification run requires all configured open answers, non-blank" do
+    test "a modification run rejects unknown open-answer keys" do
       run = generate(run(kind: :modification, run_index: nil))
 
-      # missing entirely
-      assert {:error, _} = Study.submit_likert(run, %{likert: @likert})
-      # blank value
       assert {:error, _} =
                Study.submit_likert(run, %{
                  likert: @likert,
-                 open_answers: %{"begruendung" => "  ", "anmerkungen" => "ok"}
+                 open_answers: %{"begruendung" => "ok", "nicht_konfiguriert" => "x"}
                })
+    end
+
+    test "a modification run rejects non-string open-answer values" do
+      run = generate(run(kind: :modification, run_index: nil))
+
+      assert {:error, _} =
+               Study.submit_likert(run, %{likert: @likert, open_answers: %{"begruendung" => 5}})
     end
 
     test "a modification run accepts and persists complete open answers" do
@@ -486,6 +490,22 @@ defmodule OwnershipAshChat.StudyTest do
       updated = Study.submit_likert!(run, %{likert: @likert, open_answers: answers})
 
       assert updated.open_answers == answers
+    end
+
+    test "a modification run accepts a blank open answer (matches non-required textarea)" do
+      run = generate(run(kind: :modification, run_index: nil))
+
+      # Missing entirely — as when the participant submits an empty textarea.
+      assert %{kind: :modification} = Study.submit_likert!(run, %{likert: @likert})
+
+      # Explicitly blank value on one key.
+      run2 = generate(run(kind: :modification, run_index: nil))
+
+      assert %{kind: :modification} =
+               Study.submit_likert!(run2, %{
+                 likert: @likert,
+                 open_answers: %{"begruendung" => "  ", "anmerkungen" => "ok"}
+               })
     end
 
     test "export includes open_answers only for the modification run" do

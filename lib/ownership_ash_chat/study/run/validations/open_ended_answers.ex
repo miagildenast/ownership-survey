@@ -5,8 +5,10 @@ defmodule OwnershipAshChat.Study.Run.Validations.OpenEndedAnswers do
   Open-ended questions are only asked on the **modification run** (`kind ==
   :modification`):
 
-    * modification run — exactly the configured open-question keys must be present
-      (no missing, no extra) and every value must be a non-blank string,
+    * modification run — open answers are optional (the textarea is not required):
+      any subset of the configured open-question keys may be present (missing keys
+      and blank values are allowed), but no unknown keys and every value must be a
+      string,
     * writing runs — `open_answers` must be empty (they carry no open answers).
 
   Validations cannot modify the changeset; this only accepts or rejects. It reads the
@@ -37,24 +39,24 @@ defmodule OwnershipAshChat.Study.Run.Validations.OpenEndedAnswers do
   end
 
   defp validate_keys(answers) do
-    expected = MapSet.new(Likert.open_string_keys())
+    allowed = MapSet.new(Likert.open_string_keys())
     actual = answers |> Map.keys() |> Enum.map(&to_string/1) |> MapSet.new()
 
-    if MapSet.equal?(expected, actual) do
+    if MapSet.subset?(actual, allowed) do
       :ok
     else
       {:error,
        field: :open_answers,
        message:
-         "must contain exactly the open questions: #{Enum.join(Likert.open_string_keys(), ", ")}"}
+         "may only contain the open questions: #{Enum.join(Likert.open_string_keys(), ", ")}"}
     end
   end
 
   defp validate_values(answers) do
-    if Enum.all?(answers, fn {_key, value} -> is_binary(value) and String.trim(value) != "" end) do
+    if Enum.all?(answers, fn {_key, value} -> is_binary(value) end) do
       :ok
     else
-      {:error, field: :open_answers, message: "every open answer must be a non-blank string"}
+      {:error, field: :open_answers, message: "every open answer must be a string"}
     end
   end
 
