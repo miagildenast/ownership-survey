@@ -86,8 +86,11 @@ defmodule OwnershipAshChat.Study.Config do
   @doc "Map of scale value => human label."
   def likert_scale_labels, do: fetch(:scale_labels)
 
-  @doc "A screen's copy (`:pre_modification` | `:all_done`) as `%{heading:, body:}`."
+  @doc "A screen's copy (`:pre_modification` | `:all_done`) as `%{heading:, body:, skip:}`."
   def screen(name), do: Map.fetch!(fetch(:screens), name)
+
+  @doc "Whether the pre-modification transition card should be skipped (auto-advance to the modification run)."
+  def skip_pre_modification?, do: screen(:pre_modification).skip
 
   # --- loading internals -----------------------------------------------------
 
@@ -147,5 +150,6 @@ defmodule OwnershipAshChat.Study.Config do
     }
   end
 
-  defp screen_map(%{heading: heading, body: body}), do: %{heading: heading, body: body}
+  defp screen_map(%{heading: heading, body: body, skip: skip}),
+    do: %{heading: heading, body: body, skip: skip}
 end

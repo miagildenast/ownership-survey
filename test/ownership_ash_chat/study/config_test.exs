@@ -53,6 +53,35 @@ defmodule OwnershipAshChat.Study.ConfigTest do
       assert %{heading: h, body: b} = Config.screen(:all_done)
       assert is_binary(h) and is_binary(b)
     end
+
+    test "pre_modification defaults to not skipped" do
+      refute Config.skip_pre_modification?()
+    end
+  end
+
+  describe "screens.pre_modification.skip" do
+    test "can be enabled via config" do
+      real_path = Config.path()
+
+      tmp_path =
+        Path.join(System.tmp_dir!(), "config_skip_#{System.unique_integer([:positive])}.yml")
+
+      File.write!(
+        tmp_path,
+        real_path
+        |> File.read!()
+        |> String.replace("skip: false", "skip: true")
+      )
+
+      on_exit(fn ->
+        File.rm(tmp_path)
+        Config.load!(real_path)
+      end)
+
+      Config.load!(tmp_path)
+
+      assert Config.skip_pre_modification?()
+    end
   end
 
   describe "load!/1" do

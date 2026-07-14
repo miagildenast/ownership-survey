@@ -73,6 +73,7 @@ defmodule OwnershipAshChat.Study.Config.Schema do
     typed_struct do
       field :heading, :string, allow_nil?: false
       field :body, :string, allow_nil?: false
+      field :skip, :boolean, default: false
     end
   end
 

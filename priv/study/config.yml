@@ -217,6 +217,9 @@ screens:
     body: |
       Alle vier Runs wurden abgeschlossen. Im nächsten Schritt sehen Sie eine
       **KI-Modifikation** Ihres besten Haikus und bewerten sie kurz.
+    # true: skip this transition card, auto-create the modification run and
+    # go straight to its Likert (no button click required).
+    skip: true
   all_done:
     heading: "Fast geschafft!"
     body: |

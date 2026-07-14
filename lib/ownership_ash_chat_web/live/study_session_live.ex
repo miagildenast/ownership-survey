@@ -49,7 +49,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
       |> assign_run(first_run)
       |> assign(:step, :intro)
     else
-      assign_run(socket, study |> find_current_run() |> begin_run())
+      land(socket, study, study |> find_current_run() |> begin_run())
     end
   end
 
@@ -107,13 +107,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
     # domain picks the best run, variant, and target line (see
     # Run.Changes.CreateModification). The run is created already completed, so
     # the step lands directly on :likert showing the modified haiku.
-    mod_run = Study.create_modification_run!(socket.assigns.study.id)
-    study = Study.get_session!(socket.assigns.study.id, load: [:runs])
-
-    socket
-    |> assign(:study, study)
-    |> assign_run(mod_run)
-    |> then(&{:noreply, &1})
+    {:noreply, create_modification(socket)}
   end
 
   @impl true
@@ -145,9 +139,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
       nil ->
         case modification_run(study) do
           nil ->
-            # :pre_modification — the participant triggers the (blocking) run
-            # creation explicitly via the transition card's button.
-            assign_run(socket, nil)
+            land(socket, study, nil)
 
           _mod_run ->
             # The modification run's Likert was just submitted → session done.
@@ -173,6 +165,36 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   # modification run — the triggering button shows a phx-disable-with wait state).
   defp begin_run(%{kind: :writing, started_at: nil} = run), do: Study.begin_run!(run)
   defp begin_run(run), do: run
+
+  # Land on the given run. When there is none because writing is done and the
+  # modification run hasn't been created yet, either show the pre_modification
+  # transition card, or — if `screens.pre_modification.skip` is set — skip it
+  # and create the modification run right away, landing straight on its
+  # full-screen Likert (used both at mount, to resume correctly, and after the
+  # last writing Likert is submitted).
+  defp land(socket, study, nil) do
+    if all_writing_done?(study) and is_nil(modification_run(study)) and
+         Config.skip_pre_modification?() do
+      create_modification(socket)
+    else
+      assign_run(socket, nil)
+    end
+  end
+
+  defp land(socket, _study, run), do: assign_run(socket, run)
+
+  # Creates the modification run (blocking LLM call). The domain picks the
+  # best run, variant, and target line (see Run.Changes.CreateModification).
+  # The run is created already completed, so the step lands directly on
+  # :likert showing the modified haiku.
+  defp create_modification(socket) do
+    mod_run = Study.create_modification_run!(socket.assigns.study.id)
+    study = Study.get_session!(socket.assigns.study.id, load: [:runs])
+
+    socket
+    |> assign(:study, study)
+    |> assign_run(mod_run)
+  end
 
   defp assign_run(socket, run) do
     socket

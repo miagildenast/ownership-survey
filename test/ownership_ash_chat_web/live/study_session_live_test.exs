@@ -163,6 +163,57 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     refute rendered =~ "Modifikations-Run"
   end
 
+  test "screens.pre_modification.skip auto-creates the modification run, no transition card",
+       %{conn: conn} do
+    Application.put_env(
+      :ownership_ash_chat,
+      :study_modification_responder,
+      {__MODULE__, :stub_modification}
+    )
+
+    real_config_path = Config.path()
+
+    tmp_config_path =
+      Path.join(System.tmp_dir!(), "config_skip_#{System.unique_integer([:positive])}.yml")
+
+    File.write!(
+      tmp_config_path,
+      real_config_path
+      |> File.read!()
+      |> String.replace("skip: false", "skip: true")
+    )
+
+    Config.load!(tmp_config_path)
+
+    on_exit(fn ->
+      Application.delete_env(:ownership_ash_chat, :study_modification_responder)
+      File.rm(tmp_config_path)
+      Config.load!(real_config_path)
+    end)
+
+    session = generate(session())
+    run1 = generate(run(session_id: session.id, run_index: 1, ai_mode: :without_ai))
+
+    completed =
+      Enum.reduce(["eins", "zwei", "drei"], run1, fn line, r ->
+        Study.add_user_passage!(r, line)
+      end)
+
+    Study.submit_likert!(completed, %{
+      likert: Map.new(Config.likert_items(), &{&1.key, 5})
+    })
+
+    conn = Plug.Test.init_test_session(conn, %{session_id: session.id})
+    {:ok, view, html} = live(conn, ~p"/study")
+
+    # Straight to the modification run's Likert — no transition card, no click.
+    refute has_element?(view, "#weiter-btn")
+    refute html =~ "Schreibphase abgeschlossen"
+    assert html =~ "(modified)"
+    assert html =~ "Fragebogen"
+    assert has_element?(view, "#likert-form")
+  end
+
   test "modification run Likert submits straight to the end screen, session :completed", %{
     conn: conn
   } do
