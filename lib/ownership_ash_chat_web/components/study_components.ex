@@ -65,19 +65,18 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           pending_line={@pending_line}
         />
 
-        <div class="flex items-start gap-2 border-t border-base-300 p-3">
-          <div class="flex-1">
-            <.input
-              type="text"
-              id={"passage-input-#{length(@run.transcript || [])}"}
-              name="text"
-              value=""
-              placeholder="Deine Zeile"
-              autocomplete="off"
-              required
-              phx-mounted={JS.focus()}
-            />
-          </div>
+        <div class="flex items-center gap-2 border-t border-base-300 p-3">
+          <input
+            type="text"
+            id={"passage-input-#{length(@run.transcript || [])}"}
+            name="text"
+            value=""
+            placeholder="Deine Zeile"
+            autocomplete="off"
+            required
+            class="w-full flex-1 input"
+            phx-mounted={JS.focus()}
+          />
           <.button phx-disable-with={
             if @run.ai_mode == :with_ai, do: "KI schreibt…", else: "Speichern…"
           }>
@@ -97,10 +96,15 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           pending_line={@pending_line}
         />
 
-        <div class="flex items-start gap-2 border-t border-base-300 p-3">
-          <div class="flex-1">
-            <.input type="text" name="text-disabled" value="" placeholder="Deine Zeile" disabled />
-          </div>
+        <div class="flex items-center gap-2 border-t border-base-300 p-3">
+          <input
+            type="text"
+            name="text-disabled"
+            value=""
+            placeholder="Deine Zeile"
+            disabled
+            class="w-full flex-1 input"
+          />
           <.button disabled>Senden</.button>
         </div>
       </div>
@@ -277,12 +281,21 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   attr :run, :map, required: true
 
   def likert_screen(assigns) do
+    scale = Likert.scale()
+    scale_labels = Likert.scale_labels()
+    likert_min = Enum.min(scale)
+    likert_max = Enum.max(scale)
+
     assigns =
       assigns
       |> assign(:haiku, likert_haiku(assigns.run))
       |> assign(:haiku_intro, StudyTexts.haiku_intro())
       |> assign(:likert_items, Likert.items())
-      |> assign(:likert_options, likert_options())
+      |> assign(:likert_scale, scale)
+      |> assign(:likert_min, likert_min)
+      |> assign(:likert_max, likert_max)
+      |> assign(:likert_min_label, "#{likert_min} – #{Map.fetch!(scale_labels, likert_min)}")
+      |> assign(:likert_max_label, "#{likert_max} – #{Map.fetch!(scale_labels, likert_max)}")
       |> assign(:open_questions, open_questions_for(assigns.run))
 
     ~H"""
@@ -303,29 +316,38 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         </div>
       </section>
 
-      <section class="rounded-xl border border-base-300 p-4 space-y-4 md:p-6">
+      <section class="rounded-xl border border-base-300 p-4 space-y-6 md:p-6">
         <h2 class="text-xl font-semibold">Fragebogen:</h2>
 
-        <fieldset :for={{item, item_idx} <- Enum.with_index(@likert_items)} class="space-y-2">
-          <legend class="prose prose-sm dark:prose-invert max-w-none text-sm font-medium text-base-content">
+        <fieldset
+          :for={{item, item_idx} <- Enum.with_index(@likert_items)}
+          aria-labelledby={"likert-item-#{item.key}-label"}
+          class={[
+            "space-y-3 rounded-lg p-3",
+            rem(item_idx, 2) == 1 && "bg-base-200"
+          ]}
+        >
+          <div
+            id={"likert-item-#{item.key}-label"}
+            class="prose prose-sm dark:prose-invert max-w-none text-sm font-medium text-base-content"
+          >
             {Markdown.to_html(item.prompt)}
-          </legend>
-          <div class="flex flex-col gap-2">
-            <label
-              :for={{{label, value}, opt_idx} <- Enum.with_index(@likert_options)}
-              class="flex items-center gap-2 cursor-pointer text-sm text-base-content/80 transition-colors hover:text-base-content"
-            >
-              <input
-                type="radio"
-                name={"likert[#{item.key}]"}
-                value={value}
-                checked={likert_value(@run, item.key) == value}
-                class="radio radio-sm radio-primary"
-                required
-                phx-mounted={if item_idx == 0 and opt_idx == 0, do: JS.focus()}
-              />
-              <span>{label}</span>
-            </label>
+          </div>
+          <div class="flex items-center justify-between gap-2 px-2 md:px-12">
+            <input
+              :for={{value, opt_idx} <- Enum.with_index(@likert_scale)}
+              type="radio"
+              name={"likert[#{item.key}]"}
+              value={value}
+              checked={likert_value(@run, item.key) == value}
+              class="radio radio-sm radio-primary"
+              required
+              phx-mounted={if item_idx == 0 and opt_idx == 0, do: JS.focus()}
+            />
+          </div>
+          <div class="flex justify-between text-xs text-base-content/70">
+            <span>{@likert_min_label}</span>
+            <span>{@likert_max_label}</span>
           </div>
         </fieldset>
       </section>
@@ -389,13 +411,6 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
   @doc "Whether the run's questionnaire has been answered."
   def likert_submitted?(run), do: map_size(run.likert || %{}) > 0
-
-  # Radio options as {label, value}, e.g. {"1 – Stimme gar nicht zu", "1"}.
-  defp likert_options do
-    Enum.map(Likert.scale(), fn value ->
-      {"#{value} – #{Map.fetch!(Likert.scale_labels(), value)}", value}
-    end)
-  end
 
   defp likert_value(run, key), do: Map.get(run.likert || %{}, Atom.to_string(key))
 end
