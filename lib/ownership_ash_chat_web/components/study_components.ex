@@ -13,6 +13,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   """
   use OwnershipAshChatWeb, :html
 
+  alias OwnershipAshChat.Study.Config
   alias OwnershipAshChat.Study.Likert
   alias OwnershipAshChat.Study.Run.Transcript
   alias OwnershipAshChatWeb.Markdown
@@ -367,12 +368,110 @@ defmodule OwnershipAshChatWeb.StudyComponents do
 
       <div class="sticky bottom-0 -mx-4 -mb-6 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur sm:-mb-10 sm:mx-0 sm:rounded-t-xl sm:px-3">
         <div class="flex sm:justify-end">
-          <.button class="btn btn-primary w-full sm:w-auto" phx-disable-with="Bitte warten…">
-            Weiter
-          </.button>
+          <.continue_button />
         </div>
       </div>
     </.form>
+    """
+  end
+
+  @doc """
+  The primary "Weiter" (continue) button shared by the Likert footer and the
+  pre-modification screen. Submits its enclosing form by default; pass
+  `:phx_click` to make it a plain click-event button instead.
+  """
+  attr :id, :string, default: nil
+  attr :phx_click, :string, default: nil
+  attr :disable_with, :string, default: "Bitte warten…"
+  attr :rest, :global
+
+  def continue_button(assigns) do
+    assigns = assign(assigns, :type, if(assigns.phx_click, do: "button", else: "submit"))
+
+    ~H"""
+    <.button
+      id={@id}
+      phx-click={@phx_click}
+      phx-disable-with={@disable_with}
+      class="btn btn-primary w-full sm:w-auto"
+      {[type: @type]}
+      {@rest}
+    >
+      Weiter
+    </.button>
+    """
+  end
+
+  @doc """
+  Transition card shown once all four writing runs are done: the configured
+  pre-modification copy plus the "Weiter" button that kicks off the modification
+  run (`start_modification` event).
+  """
+  def pre_modification_screen(assigns) do
+    ~H"""
+    <section class="rounded-xl border border-base-300 p-6 space-y-4">
+      <h1 class="text-2xl font-semibold">{Config.screen(:pre_modification).heading}</h1>
+      <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
+        {Markdown.to_html(Config.screen(:pre_modification).body)}
+      </div>
+      <div class="flex justify-end" phx-mounted={JS.focus(to: "#weiter-btn")}>
+        <.continue_button id="weiter-btn" phx_click="start_modification" />
+      </div>
+    </section>
+    """
+  end
+
+  @doc """
+  End screen: the configured closing copy, the session UUID the participant
+  carries back to the originating tool, and a copy-to-clipboard button.
+  """
+  attr :session_id, :string, required: true
+
+  def all_done_screen(assigns) do
+    ~H"""
+    <section class="rounded-xl border border-base-300 p-6 space-y-4 text-center">
+      <h1 class="text-2xl font-semibold">{Config.screen(:all_done).heading}</h1>
+      <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
+        {Markdown.to_html(Config.screen(:all_done).body)}
+      </div>
+      <p class="font-mono text-base break-all select-all bg-base-200 rounded-lg px-4 py-3">
+        {@session_id}
+      </p>
+      <button
+        type="button"
+        phx-hook=".CopyId"
+        id="copy-session-id"
+        data-copy={@session_id}
+        data-label="📋 Kopieren"
+        data-label-copied="✅ Kopiert!"
+        class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-content hover:opacity-90 transition-opacity"
+      >
+        📋 Kopieren
+      </button>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyId">
+        export default {
+          mounted() {
+            this.timeout = null;
+            this.el.addEventListener("click", () => {
+              navigator.clipboard.writeText(this.el.dataset.copy);
+              this.el.textContent = this.el.dataset.labelCopied;
+              this.el.classList.add("bg-success", "text-success-content");
+              this.el.classList.remove("bg-primary", "text-primary-content");
+
+              clearTimeout(this.timeout);
+              this.timeout = setTimeout(() => {
+                this.el.textContent = this.el.dataset.label;
+                this.el.classList.remove("bg-success", "text-success-content");
+                this.el.classList.add("bg-primary", "text-primary-content");
+              }, 3000);
+            });
+          },
+          destroyed() {
+            clearTimeout(this.timeout);
+          }
+        }
+      </script>
+    </section>
     """
   end
 

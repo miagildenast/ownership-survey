@@ -16,7 +16,6 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
   alias OwnershipAshChat.Study
   alias OwnershipAshChat.Study.Config
-  alias OwnershipAshChatWeb.Markdown
 
   @impl true
   def mount(_params, session, socket) do
@@ -339,69 +338,9 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
           <.likert_screen run={@run} />
         <% end %>
 
-        <%= if @step == :pre_modification do %>
-          <section class="rounded-xl border border-base-300 p-6 space-y-4">
-            <h1 class="text-2xl font-semibold">{Config.screen(:pre_modification).heading}</h1>
-            <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
-              {Markdown.to_html(Config.screen(:pre_modification).body)}
-            </div>
-            <div class="flex justify-end" phx-mounted={JS.focus(to: "#weiter-btn")}>
-              <.button
-                id="weiter-btn"
-                phx-click="start_modification"
-                phx-disable-with="Bitte warten, KI modifiziert…"
-              >
-                Weiter – KI-Modifikation starten
-              </.button>
-            </div>
-          </section>
-        <% end %>
+        <.pre_modification_screen :if={@step == :pre_modification} />
 
-        <%= if @step == :all_done do %>
-          <section class="rounded-xl border border-base-300 p-6 space-y-4 text-center">
-            <h1 class="text-2xl font-semibold">{Config.screen(:all_done).heading}</h1>
-            <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
-              {Markdown.to_html(Config.screen(:all_done).body)}
-            </div>
-            <p class="font-mono text-base break-all select-all bg-base-200 rounded-lg px-4 py-3">
-              {@study.id}
-            </p>
-            <button
-              type="button"
-              phx-hook=".CopyId"
-              id="copy-session-id"
-              data-copy={@study.id}
-              data-label="📋 Kopieren"
-              data-label-copied="✅ Kopiert!"
-              class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-content hover:opacity-90 transition-opacity"
-            >
-              📋 Kopieren
-            </button>
-            <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyId">
-              export default {
-                mounted() {
-                  this.timeout = null;
-                  this.el.addEventListener("click", () => {
-                    navigator.clipboard.writeText(this.el.dataset.copy);
-                    this.el.textContent = this.el.dataset.labelCopied;
-                    this.el.classList.add("bg-success", "text-success-content");
-                    this.el.classList.remove("bg-primary", "text-primary-content");
-
-                    clearTimeout(this.timeout);
-                    this.timeout = setTimeout(() => {
-                      this.el.textContent = this.el.dataset.label;
-                      this.el.classList.remove("bg-success", "text-success-content");
-                      this.el.classList.add("bg-primary", "text-primary-content");
-                    }, 3000);
-                  });
-                },
-                destroyed() {
-                  clearTimeout(this.timeout);
-                }
-              }
-            </script>
-          </section>
-        <% end %>
+        <.all_done_screen :if={@step == :all_done} session_id={@study.id} />
       </div>
     </Layouts.app>
     """

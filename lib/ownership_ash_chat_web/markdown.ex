@@ -15,7 +15,7 @@ defmodule OwnershipAshChatWeb.Markdown do
   def to_html(markdown) when is_binary(markdown) do
     case String.trim(markdown) do
       "" -> {:safe, ""}
-      _ -> {:safe, Earmark.as_html!(markdown, compact_output: true)}
+      _ -> {:safe, Earmark.as_html!(markdown, compact_output: true, breaks: true)}
     end
   end
 end
