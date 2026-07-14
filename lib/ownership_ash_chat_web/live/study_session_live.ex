@@ -225,7 +225,7 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
   end
 
   # Wide column for the intro's split layout and the chat; narrow otherwise.
-  defp step_width(step) when step in [:intro, :writing], do: "max-w-5xl"
+  defp step_width(step) when step in [:intro, :writing], do: "max-w-6xl"
   defp step_width(_step), do: "max-w-2xl"
 
   # Instructions/chat split: stacked on mobile (instructions capped, chat takes

@@ -332,7 +332,6 @@ defmodule OwnershipAshChatWeb.StudyComponents do
             id={"open-#{question.key}"}
             name={"open_answers[#{question.key}]"}
             rows="4"
-            required
             class="textarea textarea-bordered w-full"
           >{open_value(@run, question.key)}</textarea>
         </div>
