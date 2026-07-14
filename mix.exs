@@ -132,7 +132,7 @@ defmodule OwnershipAshChat.MixProject do
         "esbuild ownership_ash_chat --minify",
         "phx.digest"
       ],
-      precommit: ["check --format agent --fix"]
+      precommit: ["check --format agent --fix --no-retry"]
     ]
   end
 end

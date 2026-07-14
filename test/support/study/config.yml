@@ -205,6 +205,7 @@ screens:
     body: |
       Alle vier Runs wurden abgeschlossen. Im nächsten Schritt sehen Sie eine
       **KI-Modifikation** Ihres besten Haikus und bewerten sie kurz.
+    skip: false
   all_done:
     heading: "Studie abgeschlossen"
     body: |
