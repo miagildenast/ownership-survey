@@ -68,6 +68,71 @@ defmodule OwnershipAshChat.Study.ConfigTest do
     test "pre_modification defaults to not skipped" do
       refute Config.skip_pre_modification?()
     end
+
+    test "all_done defaults to copy mode when no mode is configured" do
+      assert Config.all_done_mode() == :copy
+    end
+  end
+
+  describe "screens.all_done redirect mode" do
+    @real_config "priv/study/config.yml"
+
+    setup do
+      fixture = Config.path()
+      on_exit(fn -> Config.load!(fixture) end)
+      Config.load!(@real_config)
+      :ok
+    end
+
+    test "exposes redirect mode and button label" do
+      assert Config.all_done_mode() == :redirect
+      assert Config.all_done_button_label() == "Zurück zum Fragebogen"
+    end
+
+    test "builds the return URL with substituted, URL-encoded params" do
+      url = Config.all_done_redirect_url("a b/c", "sess-1")
+      assert url == "https://www.sosci.uni-hamburg.de/aiownership/?i=a+b%2Fc"
+    end
+  end
+
+  describe "screens.all_done redirect validation" do
+    setup do
+      fixture = Config.path()
+      on_exit(fn -> Config.load!(fixture) end)
+      :ok
+    end
+
+    test "raises when mode is :redirect but no redirect block is given" do
+      # The copy-mode fixture has no redirect block; flipping it to :redirect must fail.
+      config =
+        Config.path()
+        |> File.read!()
+        |> String.replace("  all_done:\n", "  all_done:\n    mode: redirect\n")
+
+      tmp = write_tmp(config)
+
+      assert_raise RuntimeError, ~r/requires a `redirect` block/, fn ->
+        Config.load!(tmp)
+      end
+    end
+
+    test "raises on an unknown placeholder in a redirect param" do
+      config = String.replace(File.read!("priv/study/config.yml"), "%case_id%", "%foo%")
+      tmp = write_tmp(config)
+
+      assert_raise RuntimeError, ~r/unknown placeholder %foo%/, fn ->
+        Config.load!(tmp)
+      end
+    end
+  end
+
+  defp write_tmp(contents) do
+    path =
+      Path.join(System.tmp_dir!(), "config_redirect_#{System.unique_integer([:positive])}.yml")
+
+    File.write!(path, contents)
+    on_exit(fn -> File.rm(path) end)
+    path
   end
 
   describe "screens.pre_modification.skip" do

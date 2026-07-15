@@ -86,11 +86,42 @@ defmodule OwnershipAshChat.Study.Config do
   @doc "Map of scale value => human label."
   def likert_scale_labels, do: fetch(:scale_labels)
 
-  @doc "A screen's copy (`:pre_modification` | `:all_done`) as `%{heading:, body:, skip:}`."
+  @doc "A screen's copy (`:pre_modification` | `:all_done`) as `%{heading:, body:, ...}`."
   def screen(name), do: Map.fetch!(fetch(:screens), name)
 
   @doc "Whether the pre-modification transition card should be skipped (auto-advance to the modification run)."
   def skip_pre_modification?, do: screen(:pre_modification).skip
+
+  @doc "End-screen mode: `:copy` (show session UUID) or `:redirect` (link back to the tool)."
+  def all_done_mode, do: screen(:all_done).mode
+
+  @doc "Link label for the redirect-mode end screen."
+  def all_done_button_label, do: screen(:all_done).redirect.button_label
+
+  @doc """
+  Build the redirect-mode return URL, substituting the `%case_id%` / `%session_id%`
+  placeholders in the configured base URL and query params, then appending the
+  URL-encoded params. Only valid in `:redirect` mode.
+  """
+  def all_done_redirect_url(case_id, session_id) do
+    %{url: url, params: params} = screen(:all_done).redirect
+    bindings = [{"%case_id%", case_id}, {"%session_id%", session_id}]
+
+    query = Enum.map(params, fn {key, value} -> {key, interpolate(value, bindings)} end)
+    uri = url |> interpolate(bindings) |> URI.parse()
+
+    case query do
+      [] -> URI.to_string(uri)
+      _ -> uri |> URI.append_query(URI.encode_query(query)) |> URI.to_string()
+    end
+  end
+
+  # Ordered `%placeholder%` substitution (mirrors `Study.PingPong` interpolation).
+  defp interpolate(template, bindings) do
+    Enum.reduce(bindings, template, fn {placeholder, value}, acc ->
+      String.replace(acc, placeholder, to_string(value))
+    end)
+  end
 
   # --- loading internals -----------------------------------------------------
 
@@ -147,13 +178,55 @@ defmodule OwnershipAshChat.Study.Config do
       scale_labels: Map.new(c.questionnaire.scale.labels, &{&1.value, &1.label}),
       screens: %{
         pre_modification: screen_map(c.screens.pre_modification),
-        all_done: screen_map(c.screens.all_done)
+        all_done: all_done_screen_map(c.screens.all_done)
       }
     }
   end
 
   defp screen_map(%{heading: heading, body: body, skip: skip}),
     do: %{heading: heading, body: body, skip: skip}
+
+  defp all_done_screen_map(%{heading: heading, body: body, mode: mode} = screen),
+    do: %{
+      heading: heading,
+      body: body,
+      mode: mode,
+      redirect: redirect_map!(mode, screen.redirect)
+    }
+
+  # In `:redirect` mode a `redirect` block is required and its placeholders are limited
+  # to %case_id% / %session_id%. `:copy` mode ignores any `redirect` block.
+  defp redirect_map!(:copy, _redirect), do: nil
+
+  defp redirect_map!(:redirect, nil),
+    do:
+      raise(
+        "Study config screens.all_done: mode :redirect requires a `redirect` block " <>
+          "(url, button_label, params)"
+      )
+
+  defp redirect_map!(:redirect, %{url: url, button_label: label, params: params}) do
+    params = Enum.map(params, &{&1.key, &1.value})
+    reject_unknown_placeholders!([url | Enum.map(params, &elem(&1, 1))])
+    %{url: url, button_label: label, params: params}
+  end
+
+  @allowed_placeholders ~w(%case_id% %session_id%)
+
+  defp reject_unknown_placeholders!(strings) do
+    strings
+    |> Enum.flat_map(&Regex.scan(~r/%[^%]*%/, &1, capture: :first))
+    |> Enum.map(&hd/1)
+    |> Enum.reject(&(&1 in @allowed_placeholders))
+    |> case do
+      [] ->
+        :ok
+
+      [unknown | _] ->
+        raise "Study config screens.all_done.redirect: unknown placeholder #{unknown}. " <>
+                "Only #{Enum.join(@allowed_placeholders, ", ")} are allowed."
+    end
+  end
 
   # A questionnaire item, with its optional per-item scale-label override folded
   # into a `value => label` map (or `nil` to fall back to the global labels).

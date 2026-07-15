@@ -340,7 +340,11 @@ defmodule OwnershipAshChatWeb.StudySessionLive do
 
         <.pre_modification_screen :if={@step == :pre_modification} />
 
-        <.all_done_screen :if={@step == :all_done} session_id={@study.id} />
+        <.all_done_screen
+          :if={@step == :all_done}
+          session_id={@study.id}
+          case_id={@study.case_id}
+        />
       </div>
     </Layouts.app>
     """

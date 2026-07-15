@@ -422,10 +422,15 @@ defmodule OwnershipAshChatWeb.StudyComponents do
   end
 
   @doc """
-  End screen: the configured closing copy, the session UUID the participant
-  carries back to the originating tool, and a copy-to-clipboard button.
+  End screen: the configured closing copy, then either (config `all_done` `mode`):
+
+    * `:copy` — the session UUID the participant carries back to the originating tool,
+      plus a copy-to-clipboard button, or
+    * `:redirect` — a link/button back to the originating tool with the configured
+      GET params (`%case_id%` / `%session_id%` substituted).
   """
   attr :session_id, :string, required: true
+  attr :case_id, :string, required: true
 
   def all_done_screen(assigns) do
     ~H"""
@@ -434,6 +439,27 @@ defmodule OwnershipAshChatWeb.StudyComponents do
       <div class="prose prose-sm dark:prose-invert mx-auto max-w-none text-base-content/70">
         {Markdown.to_html(Config.screen(:all_done).body)}
       </div>
+      <.all_done_return session_id={@session_id} case_id={@case_id} mode={Config.all_done_mode()} />
+    </section>
+    """
+  end
+
+  # Redirect mode: a link back to the originating tool.
+  defp all_done_return(%{mode: :redirect} = assigns) do
+    ~H"""
+    <a
+      href={Config.all_done_redirect_url(@case_id, @session_id)}
+      class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-content hover:opacity-90 transition-opacity"
+    >
+      {Config.all_done_button_label()}
+    </a>
+    """
+  end
+
+  # Copy mode: the session UUID plus a copy-to-clipboard button.
+  defp all_done_return(assigns) do
+    ~H"""
+    <div class="space-y-4">
       <p class="font-mono text-base break-all select-all bg-base-200 rounded-lg px-4 py-3">
         {@session_id}
       </p>
@@ -471,7 +497,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           }
         }
       </script>
-    </section>
+    </div>
     """
   end
 

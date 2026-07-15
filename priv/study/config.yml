@@ -233,6 +233,18 @@ screens:
     # go straight to its Likert (no button click required).
     skip: false
   all_done:
+    # mode: copy      -> shows the session ID + copy button (participant enters the
+    #                    code into the questionnaire tool themselves).
+    # mode: redirect  -> shows a link back to the originating tool. The `redirect`
+    #                    block is then required. In `url` and `params[].value` only
+    #                    the placeholders %case_id% and %session_id% are allowed.
+    mode: redirect
     heading: "Fast geschafft!"
     body: |
-      Vielen Dank für Ihre Teilnahme! Bitte kopieren Sie diesen Code und fügenn Sie ihn im Fragebogen-Tool ein:
+      Vielen Dank für Ihre Teilnahme! Bitte klicken Sie auf den Button, um zum Fragebogen-Tool zurückzukehren.
+    redirect:
+      url: "https://www.sosci.uni-hamburg.de/aiownership/"
+      button_label: "Zurück zum Fragebogen"
+      params:
+        - key: i
+          value: "%case_id%"

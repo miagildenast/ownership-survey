@@ -293,4 +293,35 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     # With no modification run yet we expect the transition card.
     assert html =~ "Schreibphase abgeschlossen"
   end
+
+  describe "all_done end screen modes" do
+    test "copy mode (fixture) renders the session UUID and copy button" do
+      html =
+        render_component(&OwnershipAshChatWeb.StudyComponents.all_done_screen/1,
+          session_id: "sess-123",
+          case_id: "case-9"
+        )
+
+      assert html =~ "sess-123"
+      assert html =~ "copy-session-id"
+      refute html =~ "sosci.uni-hamburg.de"
+    end
+
+    test "redirect mode renders a return link with substituted params and no UUID" do
+      fixture = Config.path()
+      on_exit(fn -> Config.load!(fixture) end)
+      Config.load!("priv/study/config.yml")
+
+      html =
+        render_component(&OwnershipAshChatWeb.StudyComponents.all_done_screen/1,
+          session_id: "sess-123",
+          case_id: "case-9"
+        )
+
+      assert html =~ ~s(href="https://www.sosci.uni-hamburg.de/aiownership/?i=case-9")
+      assert html =~ "Zurück zum Fragebogen"
+      refute html =~ "copy-session-id"
+      refute html =~ "sess-123"
+    end
+  end
 end

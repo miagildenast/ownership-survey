@@ -80,13 +80,49 @@ defmodule OwnershipAshChat.Study.Config.Schema do
     end
   end
 
+  defmodule RedirectParam do
+    @moduledoc false
+    use Ash.TypedStruct
+
+    typed_struct do
+      field :key, :string, allow_nil?: false
+      field :value, :string, allow_nil?: false
+    end
+  end
+
+  defmodule Redirect do
+    @moduledoc false
+    use Ash.TypedStruct
+
+    typed_struct do
+      field :url, :string, allow_nil?: false
+      field :button_label, :string, allow_nil?: false
+      field :params, {:array, RedirectParam}, default: []
+    end
+  end
+
+  defmodule AllDoneScreen do
+    @moduledoc false
+    use Ash.TypedStruct
+
+    typed_struct do
+      field :heading, :string, allow_nil?: false
+      field :body, :string, allow_nil?: false
+      # `:copy` shows the session UUID + copy button; `:redirect` shows a link back
+      # to the originating tool. When `:redirect`, `redirect` must be present and its
+      # placeholders limited to %case_id%/%session_id% (enforced in `Config.normalize/1`).
+      field :mode, :atom, constraints: [one_of: [:copy, :redirect]], default: :copy
+      field :redirect, Redirect, allow_nil?: true
+    end
+  end
+
   defmodule Screens do
     @moduledoc false
     use Ash.TypedStruct
 
     typed_struct do
       field :pre_modification, Screen, allow_nil?: false
-      field :all_done, Screen, allow_nil?: false
+      field :all_done, AllDoneScreen, allow_nil?: false
     end
   end
 
