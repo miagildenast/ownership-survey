@@ -46,9 +46,9 @@ defmodule OwnershipAshChatWeb.Layouts do
     <div class={["flex flex-col", @fullscreen && "h-dvh overflow-hidden"]}>
       <header class="navbar shrink-0 border-b border-base-300 px-4 sm:px-6 lg:px-8">
         <div class="flex-1">
-          <a href={~p"/"} class="flex w-fit items-center gap-2">
+          <div class="flex w-fit items-center gap-2">
             <span class="font-semibold">{OwnershipAshChatWeb.StudyTexts.title()}</span>
-          </a>
+          </div>
         </div>
         <div class="flex-none">
           <%!-- <.theme_toggle /> --%>
