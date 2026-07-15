@@ -12,7 +12,8 @@ defmodule OwnershipAshChatWeb.DevStudyController do
 
   def new(conn, _params) do
     case_id = "dev-#{System.unique_integer([:positive])}"
-    session = Study.start_session!(%{case_id: case_id})
+    case_number = "dev-#{System.unique_integer([:positive])}"
+    session = Study.start_session!(%{case_id: case_id, case_number: case_number})
 
     conn
     |> put_session(:session_id, session.id)

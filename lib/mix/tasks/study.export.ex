@@ -12,6 +12,9 @@ defmodule Mix.Tasks.Study.Export do
       # Single session by case_id (the value handed out via /start?case_id=…)
       mix study.export --case-id <case_id>
 
+      # Single session by case_number (the second identifier from the entry link)
+      mix study.export --case-number <case_number>
+
       # All sessions
       mix study.export --all
 
@@ -33,7 +36,8 @@ defmodule Mix.Tasks.Study.Export do
     status: :string,
     output: :string,
     session_id: :string,
-    case_id: :string
+    case_id: :string,
+    case_number: :string
   ]
   @aliases [o: :output]
 
@@ -62,13 +66,19 @@ defmodule Mix.Tasks.Study.Export do
       opts[:case_id] ->
         opts[:case_id] |> Study.export_session_by_case_id!() |> Export.to_json!()
 
+      opts[:case_number] ->
+        opts[:case_number] |> Study.export_session_by_case_number!() |> Export.to_json!()
+
       true ->
         usage_error()
     end
   end
 
   defp usage_error,
-    do: Mix.raise("Provide --session-id, --case-id or --all. See `mix help study.export`.")
+    do:
+      Mix.raise(
+        "Provide --session-id, --case-id, --case-number or --all. See `mix help study.export`."
+      )
 
   defp status_filter(opts) do
     case opts[:status] do

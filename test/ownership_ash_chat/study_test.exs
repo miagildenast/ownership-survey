@@ -10,10 +10,12 @@ defmodule OwnershipAshChat.StudyTest do
       session =
         Study.create_session!(%{
           case_id: "case-1",
+          case_number: "num-1",
           topic_source_order: [:free, :assigned]
         })
 
       assert session.case_id == "case-1"
+      assert session.case_number == "num-1"
       assert session.topic_source_order == [:free, :assigned]
       assert session.status == :in_progress
       assert session.metadata == %{}
@@ -26,25 +28,32 @@ defmodule OwnershipAshChat.StudyTest do
   end
 
   describe "start_session/1" do
-    test "creates an in_progress session for a case_id" do
-      case_id = "case-#{System.unique_integer([:positive])}"
-      session = Study.start_session!(%{case_id: case_id})
+    defp start_params do
+      %{
+        case_id: "case-#{System.unique_integer([:positive])}",
+        case_number: "num-#{System.unique_integer([:positive])}"
+      }
+    end
 
-      assert session.case_id == case_id
+    test "creates an in_progress session for a case_id and case_number" do
+      params = start_params()
+      session = Study.start_session!(params)
+
+      assert session.case_id == params.case_id
+      assert session.case_number == params.case_number
       assert session.status == :in_progress
     end
 
     test "resumes the same session on re-entry with the same case_id" do
-      case_id = "case-#{System.unique_integer([:positive])}"
-      first = Study.start_session!(%{case_id: case_id})
-      second = Study.start_session!(%{case_id: case_id})
+      params = start_params()
+      first = Study.start_session!(params)
+      second = Study.start_session!(params)
 
       assert first.id == second.id
     end
 
     test "draws topic_source_order and seeds 4 writing runs" do
-      case_id = "case-#{System.unique_integer([:positive])}"
-      session = Study.start_session!(%{case_id: case_id})
+      session = Study.start_session!(start_params())
 
       assert Enum.sort(session.topic_source_order) == [:assigned, :free]
       refute is_nil(session.started_at)
@@ -74,16 +83,22 @@ defmodule OwnershipAshChat.StudyTest do
     end
 
     test "re-entry does not duplicate runs (idempotent seed)" do
-      case_id = "case-#{System.unique_integer([:positive])}"
-      first = Study.start_session!(%{case_id: case_id})
-      Study.start_session!(%{case_id: case_id})
+      params = start_params()
+      first = Study.start_session!(params)
+      Study.start_session!(params)
 
       loaded = Study.get_session!(first.id, load: [:runs])
       assert length(loaded.runs) == 4
     end
 
     test "rejects a blank case_id" do
-      assert {:error, _} = Study.start_session(%{case_id: ""})
+      assert {:error, _} =
+               Study.start_session(%{case_id: "", case_number: "num-x"})
+    end
+
+    test "rejects a blank case_number" do
+      assert {:error, _} =
+               Study.start_session(%{case_id: "case-x", case_number: ""})
     end
   end
 

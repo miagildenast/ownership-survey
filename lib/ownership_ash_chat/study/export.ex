@@ -20,6 +20,7 @@ defmodule OwnershipAshChat.Study.Export do
     %{
       session_id: session.id,
       case_id: session.case_id,
+      case_number: session.case_number,
       status: session.status,
       topic_source_order: session.topic_source_order,
       started_at: session.started_at,

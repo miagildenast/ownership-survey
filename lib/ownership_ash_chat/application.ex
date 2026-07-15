@@ -46,6 +46,7 @@ defmodule OwnershipAshChat.Application do
     session =
       OwnershipAshChat.Study.create_session!(%{
         case_id: "boot-#{System.os_time(:millisecond)}",
+        case_number: "boot-#{System.os_time(:millisecond)}",
         topic_source_order: [:free, :assigned]
       })
 

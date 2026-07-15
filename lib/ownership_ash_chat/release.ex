@@ -33,6 +33,7 @@ defmodule OwnershipAshChat.Release do
       with that status
     - `{:session_id, id}` — the single session with that `session_id` (UUID)
     - `{:case_id, id}` — the single session with that `case_id`
+    - `{:case_number, n}` — the single session with that `case_number`
 
   With `path`, writes the JSON to that file; without, returns the JSON string.
   """
@@ -56,6 +57,12 @@ defmodule OwnershipAshChat.Release do
   defp export_json({:case_id, case_id}) do
     case_id
     |> OwnershipAshChat.Study.export_session_by_case_id!()
+    |> OwnershipAshChat.Study.Export.to_json!()
+  end
+
+  defp export_json({:case_number, case_number}) do
+    case_number
+    |> OwnershipAshChat.Study.export_session_by_case_number!()
     |> OwnershipAshChat.Study.Export.to_json!()
   end
 

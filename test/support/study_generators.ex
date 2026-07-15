@@ -12,6 +12,7 @@ defmodule OwnershipAshChat.StudyGenerators do
       :create,
       defaults: [
         case_id: "case-#{System.unique_integer([:positive])}",
+        case_number: "num-#{System.unique_integer([:positive])}",
         topic_source_order: [:free, :assigned]
       ],
       overrides: opts

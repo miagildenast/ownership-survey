@@ -36,12 +36,13 @@ defmodule OwnershipAshChat.Study.ExportTest do
 
   describe "export_session/2 + serialization" do
     test "loads runs and mirrors domain attribute names" do
-      session = seed_session(case_id: "case-export-1")
+      session = seed_session(case_id: "case-export-1", case_number: "num-export-1")
 
       map = session.id |> Study.export_session!() |> Export.session_to_map()
 
       assert map.session_id == session.id
       assert map.case_id == "case-export-1"
+      assert map.case_number == "num-export-1"
       assert map.status == :in_progress
       assert map.topic_source_order == [:free, :assigned]
       assert length(map.runs) == 3
@@ -54,6 +55,16 @@ defmodule OwnershipAshChat.Study.ExportTest do
 
       assert map.session_id == session.id
       assert map.case_id == "case-export-2"
+      assert length(map.runs) == 3
+    end
+
+    test "export_session_by_case_number/2 loads the same session by its case_number" do
+      session = seed_session(case_number: "num-export-3")
+
+      map = "num-export-3" |> Study.export_session_by_case_number!() |> Export.session_to_map()
+
+      assert map.session_id == session.id
+      assert map.case_number == "num-export-3"
       assert length(map.runs) == 3
     end
 
@@ -93,11 +104,12 @@ defmodule OwnershipAshChat.Study.ExportTest do
     end
 
     test "to_json! round-trips with enums rendered as strings" do
-      session = seed_session(case_id: "case-json")
+      session = seed_session(case_id: "case-json", case_number: "num-json")
 
       decoded = session.id |> Study.export_session!() |> Export.to_json!() |> Jason.decode!()
 
       assert decoded["case_id"] == "case-json"
+      assert decoded["case_number"] == "num-json"
       assert decoded["status"] == "in_progress"
       assert decoded["topic_source_order"] == ["free", "assigned"]
       assert [first | _] = decoded["runs"]
