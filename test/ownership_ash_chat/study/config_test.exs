@@ -75,23 +75,41 @@ defmodule OwnershipAshChat.Study.ConfigTest do
   end
 
   describe "screens.all_done redirect mode" do
-    @real_config "priv/study/config.yml"
+    # Build a self-contained redirect config on top of the copy-mode fixture so the
+    # assertions never depend on the real priv/study/config.yml values (button label,
+    # URL, params), which are free to change without breaking these tests.
+    @redirect_all_done """
+      all_done:
+        mode: redirect
+        redirect:
+          url: "https://example.test/return/"
+          button_label: "Zurück zum Test"
+          params:
+            - key: i
+              value: "%case_id%"
+    """
 
     setup do
       fixture = Config.path()
       on_exit(fn -> Config.load!(fixture) end)
-      Config.load!(@real_config)
+
+      config =
+        fixture
+        |> File.read!()
+        |> String.replace("  all_done:\n", @redirect_all_done)
+
+      Config.load!(write_tmp(config))
       :ok
     end
 
     test "exposes redirect mode and button label" do
       assert Config.all_done_mode() == :redirect
-      assert Config.all_done_button_label() == "Zurück zum Fragebogen"
+      assert Config.all_done_button_label() == "Zurück zum Test"
     end
 
     test "builds the return URL with substituted, URL-encoded params" do
       url = Config.all_done_redirect_url("a b/c", "sess-1")
-      assert url == "https://www.sosci.uni-hamburg.de/aiownership/?i=a+b%2Fc"
+      assert url == "https://example.test/return/?i=a+b%2Fc"
     end
   end
 

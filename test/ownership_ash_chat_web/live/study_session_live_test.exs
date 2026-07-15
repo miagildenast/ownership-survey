@@ -308,9 +308,30 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
     end
 
     test "redirect mode renders a return link with substituted params and no UUID" do
+      # Build a self-contained redirect config on top of the copy-mode fixture so the
+      # assertions don't depend on the real priv/study/config.yml values.
       fixture = Config.path()
       on_exit(fn -> Config.load!(fixture) end)
-      Config.load!("priv/study/config.yml")
+
+      redirect_all_done = """
+        all_done:
+          mode: redirect
+          redirect:
+            url: "https://example.test/return/"
+            button_label: "Zurück zum Test"
+            params:
+              - key: i
+                value: "%case_id%"
+      """
+
+      config = String.replace(File.read!(fixture), "  all_done:\n", redirect_all_done)
+
+      tmp =
+        Path.join(System.tmp_dir!(), "config_redirect_#{System.unique_integer([:positive])}.yml")
+
+      File.write!(tmp, config)
+      on_exit(fn -> File.rm(tmp) end)
+      Config.load!(tmp)
 
       html =
         render_component(&OwnershipAshChatWeb.StudyComponents.all_done_screen/1,
@@ -318,8 +339,8 @@ defmodule OwnershipAshChatWeb.StudySessionLiveTest do
           case_id: "case-9"
         )
 
-      assert html =~ ~s(href="https://www.sosci.uni-hamburg.de/aiownership/?i=case-9")
-      assert html =~ "Zurück zum Fragebogen"
+      assert html =~ ~s(href="https://example.test/return/?i=case-9")
+      assert html =~ "Zurück zum Test"
       refute html =~ "copy-session-id"
       refute html =~ "sess-123"
     end
