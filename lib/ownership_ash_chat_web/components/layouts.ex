@@ -51,7 +51,7 @@ defmodule OwnershipAshChatWeb.Layouts do
           </a>
         </div>
         <div class="flex-none">
-          <.theme_toggle />
+          <%!-- <.theme_toggle /> --%>
         </div>
       </header>
 

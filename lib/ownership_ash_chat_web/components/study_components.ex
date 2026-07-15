@@ -373,7 +373,7 @@ defmodule OwnershipAshChatWeb.StudyComponents do
         </div>
       </section>
 
-      <div class="sticky bottom-0 -mx-4 -mb-6 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur sm:-mb-10 sm:mx-0 sm:rounded-t-xl sm:px-3">
+      <div class="sticky bottom-0 -mx-4 -mb-6 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur sm:static sm:-mb-10 sm:mx-0 sm:rounded-t-xl sm:px-3">
         <div class="flex sm:justify-end">
           <.continue_button />
         </div>
