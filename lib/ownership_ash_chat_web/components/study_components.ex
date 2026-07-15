@@ -131,6 +131,10 @@ defmodule OwnershipAshChatWeb.StudyComponents do
     >
       <%= for entry <- @entries do %>
         <%= case entry do %>
+          <% {:framing_task, task} -> %>
+            <div class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border-2 border-orange-400 bg-base-200/60 px-4 py-2 text-sm text-base-content/80">
+              {Markdown.to_html(task)}
+            </div>
           <% {:task, task} -> %>
             <div class="prose prose-sm dark:prose-invert max-w-[80%] mr-auto rounded-2xl rounded-bl-sm border border-base-300 bg-base-200/60 px-4 py-2 text-sm text-base-content/60">
               {Markdown.to_html(task)}
@@ -205,6 +209,9 @@ defmodule OwnershipAshChatWeb.StudyComponents do
     |> Enum.flat_map(fn {passage, position} ->
       case StudyTexts.task_message(run, position) do
         nil -> [{:passage, passage}]
+        # Position 0 is the run's framing instruction, not a per-line task: keep it
+        # visually prominent (orange) throughout the run, like the active task.
+        task when position == 0 -> [{:framing_task, task}, {:passage, passage}]
         task -> [{:task, task}, {:passage, passage}]
       end
     end)
