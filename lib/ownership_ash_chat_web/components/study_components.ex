@@ -334,17 +334,21 @@ defmodule OwnershipAshChatWeb.StudyComponents do
           >
             {Markdown.to_html(item.prompt)}
           </div>
-          <div class="flex items-center justify-between gap-2 px-2 md:px-12">
-            <input
+          <div class="flex items-center justify-between gap-1 px-1 md:px-10">
+            <label
               :for={{value, opt_idx} <- Enum.with_index(@likert_scale)}
-              type="radio"
-              name={"likert[#{item.key}]"}
-              value={value}
-              checked={likert_value(@run, item.key) == value}
-              class="radio radio-sm radio-primary"
-              required
-              phx-mounted={if item_idx == 0 and opt_idx == 0, do: JS.focus()}
-            />
+              class="flex flex-1 cursor-pointer items-center justify-center py-3"
+            >
+              <input
+                type="radio"
+                name={"likert[#{item.key}]"}
+                value={value}
+                checked={likert_value(@run, item.key) == value}
+                class="radio radio-sm radio-primary"
+                required
+                phx-mounted={if item_idx == 0 and opt_idx == 0, do: JS.focus()}
+              />
+            </label>
           </div>
           <div class="flex justify-between text-xs text-base-content/70">
             <span>{likert_endpoint_label(item, :min)}</span>
