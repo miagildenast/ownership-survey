@@ -7,6 +7,7 @@
 #     ./bin/export_remote.sh <all|in_progress|completed|aborted> <output_path>
 #     ./bin/export_remote.sh --session-id <session_id> <output_path>
 #     ./bin/export_remote.sh --case-id <case_id> <output_path>
+#     ./bin/export_remote.sh --case-number <case_number> <output_path>
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,12 +24,17 @@ case "${1:-all}" in
     output="${3:?output path required}"
     arg="{:case_id, \"$id\"}"
     ;;
+  --case-number)
+    id="${2:?--case-number requires a value}"
+    output="${3:?output path required}"
+    arg="{:case_number, \"$id\"}"
+    ;;
   all)         output="${2:?output path required}"; arg="nil" ;;
   in_progress) output="${2:?output path required}"; arg=":in_progress" ;;
   completed)   output="${2:?output path required}"; arg=":completed" ;;
   aborted)     output="${2:?output path required}"; arg=":aborted" ;;
   *)
-    echo "Unknown selector '$1' (use: all|in_progress|completed|aborted|--session-id <id>|--case-id <id>)" >&2
+    echo "Unknown selector '$1' (use: all|in_progress|completed|aborted|--session-id <id>|--case-id <id>|--case-number <n>)" >&2
     exit 1
     ;;
 esac

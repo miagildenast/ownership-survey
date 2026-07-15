@@ -13,6 +13,7 @@ set -euo pipefail
 #
 #     ./bin/export.sh --session-id <session_id> [local_out]
 #     ./bin/export.sh --case-id <case_id> [local_out]
+#     ./bin/export.sh --case-number <case_number> [local_out]
 
 : "${UBERSPACE_USER:?set UBERSPACE_USER (see .envrc.private.example)}"
 : "${UBERSPACE_SERVER:?set UBERSPACE_SERVER (see .envrc.private.example)}"
@@ -28,6 +29,12 @@ case "${1:-all}" in
     id="${2:?--case-id requires a value}"
     remote_args=(--case-id "$id")
     slug="case_${id}"
+    local_out="${3:-study_export_${slug}.json}"
+    ;;
+  --case-number)
+    id="${2:?--case-number requires a value}"
+    remote_args=(--case-number "$id")
+    slug="casenum_${id}"
     local_out="${3:-study_export_${slug}.json}"
     ;;
   *)

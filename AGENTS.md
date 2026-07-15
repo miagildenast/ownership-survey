@@ -232,6 +232,32 @@ attribute names (snake_case); exported JSON keys mirror them.
   but must be adapted for the study setup (phases, conditions, ping-pong logic,
   questionnaires, `case_id` entry instead of auth).
 
+### Study data export (all entry points)
+
+Export is a **layered stack** — the JSON is always built by
+`OwnershipAshChat.Study.Export` from the `:export` / `:export_all` read actions, but it is
+reached through several entry points. **When you add or change an export selector (e.g. a new
+lookup key like `case_number`), you MUST update every layer below — a code-only change leaves
+the shell wrappers broken.** Trace the call path, not just the Elixir symbol; the shell
+selectors (`--case-id`, …) are plain args, invisible to a code search.
+
+- **Domain** — `lib/ownership_ash_chat/study.ex`: `define :export_session_by_<key>` code
+  interfaces (`get_by:` needs a matching identity on the resource) + `list_sessions_for_export`.
+- **Serialization** — `lib/ownership_ash_chat/study/export.ex`: `session_to_map/1` (mirror
+  every persisted attribute into the exported map) + `to_json!/1`.
+- **Mix task (local/dev)** — `lib/mix/tasks/study.export.ex`: `@switches`, the `build_json/1`
+  dispatch, and the `usage_error/0` text.
+- **Release helper (prod, no Mix)** — `lib/ownership_ash_chat/release.ex`: `export/2`'s
+  `export_json/1` selector clauses (`{:session_id, _}`, `{:case_id, _}`, …).
+- **Shell wrappers** — how export is actually invoked against prod (Uberspace):
+  - `bin/export.sh` — client: parses the selector, SSHes to the server, rsyncs the JSON down.
+  - `bin/export_remote.sh` — server: maps the selector to the `Release.export/2` arg tuple and
+    runs the release `eval`. **This is the script that errors on an unknown selector.**
+
+A new selector therefore touches: resource identity → domain define → export map (if a new
+field) → mix task → release helper → **both** shell scripts. Deploying it to prod also
+requires a `./bin/deploy.sh` (rebuilds the release + runs `bin/migrate`).
+
 ### Repo conventions
 
 - **`AGENTS.md` is the single source of truth**; `CLAUDE.md` is a symlink to it. Edit
