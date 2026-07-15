@@ -201,6 +201,7 @@ defmodule OwnershipAshChat.Study.PingPong do
 
       {:error, reason} ->
         Logger.error("PingPong LLM call failed: #{inspect(reason)}")
+        OwnershipAshChat.Notifications.Events.ai_failure(reason)
         "error im llm"
     end
   end

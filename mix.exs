@@ -101,6 +101,8 @@ defmodule OwnershipAshChat.MixProject do
       {:yaml_elixir, "~> 2.11"},
       {:earmark, "~> 1.4"},
       {:req, "~> 0.5"},
+      # Behaviour-facade for the pluggable notifications backend (default: Telegram).
+      {:ex_knigge, "2.0.0-rc.0"},
       # for usage_rules
       {:req_llm, "~> 1.7"},
       {:telemetry_metrics, "~> 1.0"},

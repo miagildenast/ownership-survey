@@ -13,6 +13,12 @@ config :ownership_ash_chat,
 config :ownership_ash_chat,
   study_config_path: "test/support/study/config.yml"
 
+# Swap the notifications backend for a test double that forwards to a registered pid
+# (see OwnershipAshChat.Notifications.TestBackend) instead of calling Telegram.
+config :ownership_ash_chat,
+       OwnershipAshChat.Notifications,
+       OwnershipAshChat.Notifications.TestBackend
+
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Configure your database

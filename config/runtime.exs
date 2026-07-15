@@ -70,6 +70,29 @@ llm_config =
 
 config :ownership_ash_chat, :llm, llm_config
 
+# Notifications. Pick the backend with NOTIFICATION_PROVIDER (unset → Disabled no-op).
+# Provider credentials are namespaced by provider, e.g.
+#   NOTIFICATION_PROVIDER=TELEGRAM
+#   NOTIFICATION_PROVIDER_TELEGRAM_BOT_TOKEN=…
+#   NOTIFICATION_PROVIDER_TELEGRAM_CHAT_ID=…
+# See OwnershipAshChat.Notifications / .Telegram / .Disabled.
+config :ownership_ash_chat, :notifications,
+  telegram: [
+    bot_token: System.get_env("NOTIFICATION_PROVIDER_TELEGRAM_BOT_TOKEN"),
+    chat_id: System.get_env("NOTIFICATION_PROVIDER_TELEGRAM_CHAT_ID")
+  ]
+
+# The test env pins its own backend (config/test.exs); only dev/prod select by env var.
+if config_env() != :test do
+  notifications_backend =
+    case System.get_env("NOTIFICATION_PROVIDER") |> to_string() |> String.downcase() do
+      "telegram" -> OwnershipAshChat.Notifications.Telegram
+      _ -> OwnershipAshChat.Notifications.Disabled
+    end
+
+  config :ownership_ash_chat, OwnershipAshChat.Notifications, notifications_backend
+end
+
 # Study config file location override. Point this at a stable path OUTSIDE the
 # baked release (e.g. the rsync'd source tree) so content updates to config.yml
 # can be shipped + hot-reloaded (`OwnershipAshChat.Study.Config.reload/0`)

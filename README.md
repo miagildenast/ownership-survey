@@ -5,6 +5,22 @@ Phoenix/Ash application backing a research study in which participants write hai
 of writing runs at `/study`; entry is normally via the upstream `case_id` link, but a
 one-click dev route starts a randomized session locally.
 
+## Table of contents
+
+- [Setup](#setup)
+- [LLM backend](#llm-backend)
+- [Development](#development)
+  - [Local debug session](#local-debug-session)
+    - [Single-run harness](#single-run-harness)
+- [Operations](#operations)
+  - [Hosting on Uberspace](#hosting-on-uberspace)
+  - [Building a release](#building-a-release)
+  - [Notifications](#notifications)
+  - [Exporting study data](#exporting-study-data)
+    - [Locally](#locally)
+    - [On prod](#on-prod)
+- [Learn more](#learn-more)
+
 ## Setup
 
 - `mix setup` — install deps, create + migrate the database
@@ -12,18 +28,22 @@ one-click dev route starts a randomized session locally.
 - Visit [`localhost:4000`](http://localhost:4000)
 
 For the production stack, see the [Phoenix deployment guides](https://phoenix.hexdocs.pm/deployment.html)
-and [Production](#production) below.
+and [Operations](#operations) below.
 
 ## LLM backend
 
 Config-driven (`OwnershipAshChat.LLM`, wired up in `config/runtime.exs` — see the comments
 there for dev/test vs. prod and how to switch prod between OpenRouter and the real OpenAI
-API). Matching API key goes in `bin/ownership_ash_chat.ini` (see its `.example`).
+API). The matching API key goes in `bin/ownership_ash_chat.ini` (see its `.example`).
 
 `:with_ai` (ping-pong) runs call the model, so they need a backend running.
 `:without_ai` (solo writing) runs need **no** LLM.
 
-## Local debug session
+## Development
+
+Local, no-auth ways to walk the study flow end to end.
+
+### Local debug session
 
 The fastest way to walk the flow locally — no upstream link, no IEx. The dev routes are
 only available with `dev_routes` enabled (the default in `dev`).
@@ -42,8 +62,8 @@ runs — stashes the `session_id` in your session cookie, and drops you on `/stu
 
 Walk each run: add your lines (ping-pong with the AI for `:with_ai` runs — the AI opens
 with line 1 in `:assigned` runs, and writes line 2 in `:free` runs where your first line
-sets the topic implicitly; `:assigned` runs display the fixed topic "Jahreszeiten"), and
-once the haiku is complete submit the questionnaire then click **Weiter** to advance.
+sets the topic implicitly; `:assigned` runs display the fixed topic "Jahreszeiten"). Once
+the haiku is complete, submit the questionnaire and click **Weiter** to advance.
 
 After all four writing runs:
 
@@ -59,7 +79,7 @@ Reloading mid-flow resumes at the current run without triggering a second LLM ca
 > `:without_ai` runs need no LLM. `:with_ai` runs call the model for line 2, so they need a
 > backend running (see [LLM backend](#llm-backend)).
 
-### Single-run harness
+#### Single-run harness
 
 To drive one run in isolation by id, use
 [`/dev/study/run/:run_id`](http://localhost:4000/dev/study/run). Create a run in IEx
@@ -73,52 +93,9 @@ r = hd(OwnershipAshChat.Study.get_session!(s.id, load: [:runs]).runs)
 
 Other dev tooling: LiveDashboard at `/dev/dashboard`, mailbox preview at `/dev/mailbox`.
 
-## Exporting study data
+## Operations
 
-Sessions are stored relationally; JSON is an on-demand export artifact.
-
-### Locally
-
-The `study.export` Mix task (dev only — Mix is not in a release):
-
-```sh
-mix study.export <session_id>              # one session, to stdout
-mix study.export --all                     # every session
-mix study.export --all --status completed  # filter by status
-mix study.export --all -o sessions.json    # write to a file
-```
-
-Or from IEx (`iex -S mix`), the same code interfaces the task uses:
-
-```elixir
-# one session
-OwnershipAshChat.Study.export_session!("<session_id>")
-|> OwnershipAshChat.Study.Export.to_json!()
-
-# all (optionally filtered)
-OwnershipAshChat.Study.list_sessions_for_export!(%{status: :completed})
-|> OwnershipAshChat.Study.Export.to_json!()
-```
-
-### On prod
-
-Run `bin/export.sh` **from the client** (like `bin/deploy.sh`; needs `UBERSPACE_USER` /
-`UBERSPACE_SERVER`). It builds the JSON on the server, then rsyncs it down to the local
-path you give:
-
-```sh
-./bin/export.sh                              # all -> ./study_export_all.json
-./bin/export.sh completed                    # completed -> ./study_export_completed.json
-./bin/export.sh completed ~/Desktop/x.json   # completed -> given local path
-```
-
-Mix tasks don't ship in a release, so the server side (`bin/export_remote.sh`, invoked
-over SSH) loads the prod env from the supervisord service file and calls
-`OwnershipAshChat.Release.export/2`. That starts the repo on its own — no dependency on
-the running app or Erlang distribution (`remote`/`rpc` need a cookie + epmd, which this
-deploy doesn't set up).
-
-## Production
+Deploying, monitoring, and pulling data from the running app.
 
 ### Hosting on [Uberspace](https://uberspace.de)
 
@@ -145,11 +122,11 @@ app is (re)started under [supervisord](https://manual.uberspace.de/daemons-super
 ./bin/deploy.sh
 ```
 
-> [TIP]
-> You can also deploy without building assets – eg you still have them locally: `./bin/deploy.sh --skip-assets`
+> [!TIP]
+> You can also deploy without building assets — e.g. when you still have them locally: `./bin/deploy.sh --skip-assets`
 
-This runs, over SSH: `bin/install.sh` (deps + assets), `bin/release.sh` (`mix release`
-then run migrations via the release's `bin/migrate`), and `bin/restart_service.sh`
+This runs, over SSH: `bin/install.sh` (deps + assets), `bin/release.sh` (`mix release`,
+then migrations via the release's `bin/migrate`), and `bin/restart_service.sh`
 (`supervisorctl` reread/update/restart).
 
 After the first deploy, [open a web backend on Uberspace](https://manual.uberspace.de/web-backends/#specific-path)
@@ -178,6 +155,89 @@ the app with `PHX_SERVER=true`) and `bin/migrate` (runs `OwnershipAshChat.Releas
 from `rel/overlays/bin/`. If you build the release on a different machine than the target,
 the build host must match the server's OS/architecture (see the
 [Phoenix releases guide](https://hexdocs.pm/phoenix/releases.html)).
+
+### Notifications
+
+A small, pluggable notification layer (`OwnershipAshChat.Notifications`, a
+[`knigge`](https://hex.pm/packages/ex_knigge) facade) pings an external channel on key
+events. The backend is chosen at runtime by env var; **Telegram** is the only backend so
+far. It's **best-effort** — a failed/misconfigured send is logged and swallowed, never
+blocking or breaking the study flow.
+
+**Events:** app started · app stopping (graceful shutdown) · session started · session
+completed · AI generation failed (LLM error during ping-pong).
+
+**Enable (Telegram):** set on the host (for prod, in `bin/ownership_ash_chat.ini`)
+
+```sh
+NOTIFICATION_PROVIDER=TELEGRAM
+NOTIFICATION_PROVIDER_TELEGRAM_BOT_TOKEN=123456:ABC…     # from @BotFather
+NOTIFICATION_PROVIDER_TELEGRAM_CHAT_ID=-1001234567890    # target chat/channel id
+```
+
+**Getting the two Telegram values:**
+
+1. **Bot token** — DM [@BotFather](https://t.me/BotFather), send `/newbot`, follow the
+   prompts; it replies with the token (`123456:ABC…`).
+2. **Chat id** — add the bot to the target chat/channel (as admin for a channel), post
+   any message there, then open
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `result[].chat.id` (channels
+   are negative, like `-100…`). For a 1:1 DM, message the bot instead and use your own
+   `chat.id`.
+
+Unset `NOTIFICATION_PROVIDER` (the default) selects the `Disabled` no-op backend, so
+dev/test stay silent and need no secrets. Tests pin a forwarding backend
+(`Notifications.TestBackend`) via `config/test.exs`.
+
+**Add a provider:** implement the `OwnershipAshChat.Notifications` behaviour
+(`deliver/1`) in a new backend module and add a `NOTIFICATION_PROVIDER` case in
+`config/runtime.exs`. Per-provider credentials follow the
+`NOTIFICATION_PROVIDER_<NAME>_*` naming.
+
+### Exporting study data
+
+Sessions are stored relationally; JSON is an on-demand export artifact.
+
+#### Locally
+
+The `study.export` Mix task (dev only — Mix is not in a release):
+
+```sh
+mix study.export <session_id>              # one session, to stdout
+mix study.export --all                     # every session
+mix study.export --all --status completed  # filter by status
+mix study.export --all -o sessions.json    # write to a file
+```
+
+Or from IEx (`iex -S mix`), the same code interfaces the task uses:
+
+```elixir
+# one session
+OwnershipAshChat.Study.export_session!("<session_id>")
+|> OwnershipAshChat.Study.Export.to_json!()
+
+# all (optionally filtered)
+OwnershipAshChat.Study.list_sessions_for_export!(%{status: :completed})
+|> OwnershipAshChat.Study.Export.to_json!()
+```
+
+#### On prod
+
+Run `bin/export.sh` **from the client** (like `bin/deploy.sh`; needs `UBERSPACE_USER` /
+`UBERSPACE_SERVER`). It builds the JSON on the server, then rsyncs it down to the local
+path you give:
+
+```sh
+./bin/export.sh                              # all -> ./study_export_all.json
+./bin/export.sh completed                    # completed -> ./study_export_completed.json
+./bin/export.sh completed ~/Desktop/x.json   # completed -> given local path
+```
+
+Mix tasks don't ship in a release, so the server side (`bin/export_remote.sh`, invoked
+over SSH) loads the prod env from the supervisord service file and calls
+`OwnershipAshChat.Release.export/2`. That starts the repo on its own — no dependency on
+the running app or Erlang distribution (`remote`/`rpc` need a cookie + epmd, which this
+deploy doesn't set up).
 
 ## Learn more
 

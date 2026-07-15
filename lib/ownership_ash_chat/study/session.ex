@@ -2,7 +2,8 @@ defmodule OwnershipAshChat.Study.Session do
   use Ash.Resource,
     otp_app: :ownership_ash_chat,
     domain: OwnershipAshChat.Study,
-    data_layer: AshSqlite.DataLayer
+    data_layer: AshSqlite.DataLayer,
+    notifiers: [OwnershipAshChat.Study.Session.Notifiers.SessionEvents]
 
   alias OwnershipAshChat.Study.Types
 

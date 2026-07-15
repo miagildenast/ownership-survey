@@ -32,6 +32,9 @@ defmodule OwnershipAshChat.Study.Session.Changes.SeedRuns do
           Study.create_run!(Map.put(spec, :session_id, session.id))
         end)
 
+        # Fresh insert only (resume skips this branch) → announce a new participant.
+        OwnershipAshChat.Notifications.Events.session_started(session)
+
         {:ok, Ash.load!(session, :runs)}
       else
         {:ok, session}

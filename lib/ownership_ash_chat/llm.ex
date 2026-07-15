@@ -1,5 +1,9 @@
 defmodule OwnershipAshChat.LLM do
-  @moduledoc "Central LLM model/options resolution (prod: Anthropic, dev: local LM Studio)."
+  @moduledoc """
+  Central LLM model/options resolution. Config-driven via `config/runtime.exs`: prod uses
+  an OpenAI-compatible backend (OpenRouter or the real OpenAI API); dev/test use a local
+  OpenAI-compatible endpoint (LM Studio).
+  """
 
   def model, do: config()[:model]
   def req_llm_opts, do: Keyword.get(config(), :req_llm_opts, [])

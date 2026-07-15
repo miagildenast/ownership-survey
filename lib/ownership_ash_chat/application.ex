@@ -20,8 +20,9 @@ defmodule OwnershipAshChat.Application do
       {Phoenix.PubSub, name: OwnershipAshChat.PubSub},
       # Start a worker by calling: OwnershipAshChat.Worker.start_link(arg)
       # {OwnershipAshChat.Worker, arg},
-      # Start to serve requests, typically the last entry
-      OwnershipAshChatWeb.Endpoint
+      OwnershipAshChatWeb.Endpoint,
+      # Last child: emits app-started now / app-stopping on graceful shutdown.
+      OwnershipAshChat.Notifications.Lifecycle
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
