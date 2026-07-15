@@ -250,3 +250,5 @@ screens:
       params:
         - key: i
           value: "%case_id%"
+        - key: return
+          value: "1"
