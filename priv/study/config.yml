@@ -29,7 +29,7 @@ intro:
 
     > Wolken am Hügel – (Wol-ken am Hü-gel -> 5 Silben)  
     > der Hund des Schäfers treibt sie (der Hund des Schä-fers treibt sie -> 7 Silben)  
-    > höher und höher. (H-her und hö-her -> 5 Silbend)
+    > höher und höher. (Hö-her und hö-her -> 5 Silbend)
 
     – [Reiner Bonack](https://www.haiku-heute.de/archiv/haiku-gute-beispiele/)
 
@@ -39,14 +39,14 @@ task_messages:
   - topic_source: assigned
     ai_mode: without_ai
     position: 0
-    text: >
+    text: |
       Schreiben Sie zu folgendem Thema ein deutsches Haiku mit der Silbenstruktur 5–7–5: „{topic}“.
 
       Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
   - topic_source: free
     ai_mode: without_ai
     position: 0
-    text: >
+    text: |
       Schreiben Sie ein deutsches Haiku mit der Silbenstruktur 5–7–5. Sie dürfen dabei das Thema selbst entscheiden und müssen sich nicht an die klassischen Haikuthemen halten. 
 
       Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
@@ -55,14 +55,14 @@ task_messages:
   - topic_source: assigned
     ai_mode: with_ai
     position: 0
-    text: >
+    text: |
       Die KI hat Ihnen die erste Zeile zu einem Haiku zum Thema „{topic}“ generiert. Schreiben Sie die zweite Zeile mit 7 Silben. Die KI wird Ihnen danach die dritte Zeile des Haikus generieren (dies kann einen kleinen Moment dauern). 
 
       Wenn die dritte Zeile generiert wurde, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
   - topic_source: free
     ai_mode: with_ai
     position: 0
-    text: >
+    text: |
       Schreiben Sie zuerst nur die erste Zeile eines deutschen Haikus mit 5 Silben. Sie dürfen dabei das Thema selbst entscheiden und müssen sich nicht an klassische Haikuthemen halten. Die KI wird ihnen die zweite Zeile generieren (dies kann einen kleinen Moment dauern). Schreiben Sie danach nur die dritte Zeile des Haikus mit 5 Silben. 
 
       Wenn Sie die dritte Zeile abgeschickt haben, werden Sie automatisch zum Fragebogen geleitet. Dort sehen Sie noch einmal Ihr Haiku, füllen Sie den Fragebogen  basierend auf diesem Haiku aus.
