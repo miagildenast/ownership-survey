@@ -1,7 +1,8 @@
 defmodule OwnershipAshChat.Notifications.DailyReport do
   @moduledoc """
   Sends the aggregate study statistics (`OwnershipAshChat.Study.Stats`) to the
-  notification channel once a day.
+  notification channel once a day **and once on app start** (so a deploy/restart
+  immediately reports the current state).
 
   A plain `Process.send_after/3` timer — no scheduler dependency. After each run it
   recomputes the delay to the next occurrence, so a long-running node stays on time.
@@ -10,7 +11,8 @@ defmodule OwnershipAshChat.Notifications.DailyReport do
 
       config :ownership_ash_chat, :stats_report,
         enabled: true,
-        at: ~T[09:30:00]
+        at: ~T[09:30:00],
+        on_start: true
 
   Disabled (`enabled: false`, the default) means the process is not started at all
   (`OwnershipAshChat.Application`). The time is interpreted in the **server's local
@@ -43,15 +45,23 @@ defmodule OwnershipAshChat.Notifications.DailyReport do
   @doc "The configured local time of day the report is sent at."
   def scheduled_at, do: Keyword.get(config(), :at, @default_at)
 
+  @doc "Whether an extra report is sent when the process starts (default `true`)."
+  def on_start?, do: Keyword.get(config(), :on_start, true)
+
   @doc """
   Compute + deliver the report right now, regardless of the schedule. Also the body of
   the timed run; handy from IEx / `bin/ownership_ash_chat remote` to verify the wiring.
   """
-  def deliver_now do
-    Events.daily_stats(Stats.collect!())
+  def deliver_now(event \\ :daily) do
+    stats = Stats.collect!()
+
+    case event do
+      :daily -> Events.daily_stats(stats)
+      :startup -> Events.startup_stats(stats)
+    end
   rescue
     error ->
-      Logger.warning("daily stats report failed: #{Exception.message(error)}")
+      Logger.warning("stats report failed: #{Exception.message(error)}")
       :error
   end
 
@@ -73,7 +83,20 @@ defmodule OwnershipAshChat.Notifications.DailyReport do
   @impl true
   def init(opts) do
     at = Keyword.get(opts, :at, scheduled_at())
-    {:ok, schedule(%{at: at})}
+    state = schedule(%{at: at})
+
+    if Keyword.get(opts, :on_start, on_start?()) do
+      {:ok, state, {:continue, :startup_report}}
+    else
+      {:ok, state}
+    end
+  end
+
+  # Post-init so the supervisor is not blocked by the DB read + HTTP delivery.
+  @impl true
+  def handle_continue(:startup_report, state) do
+    deliver_now(:startup)
+    {:noreply, state}
   end
 
   @impl true

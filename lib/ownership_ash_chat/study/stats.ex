@@ -3,7 +3,7 @@ defmodule OwnershipAshChat.Study.Stats do
   Lean aggregate statistics over all study sessions — the monitoring counterpart to
   `OwnershipAshChat.Study.Export` (which dumps raw data).
 
-  Answers three questions:
+  Answers four questions:
 
     * **How many questionnaires have been submitted so far?** — a run counts as
       submitted once its `likert` map is non-empty, split by run `kind`.
@@ -11,6 +11,8 @@ defmodule OwnershipAshChat.Study.Stats do
       (`completed_at - started_at`) over sessions that carry both timestamps.
     * **Is the randomization balanced?** — how often each `topic_source` block came
       first, and how often each `ai_mode` came first inside each of the two blocks.
+    * **How were the haikus modified?** — how often the fifth run changed only one word
+      (`variant: :a`) vs. the whole line (`variant: :b`).
 
   Computed in memory from the same `:export_all` read action the export uses (sessions
   with their `runs` loaded); the study's data volume is small enough that no aggregate
@@ -25,6 +27,10 @@ defmodule OwnershipAshChat.Study.Stats do
   @statuses [:in_progress, :completed, :aborted]
   @topic_sources [:assigned, :free]
   @ai_modes [:with_ai, :without_ai]
+
+  # Modification variants, under reporting names: `:a` rewrites a single word, `:b` the
+  # whole target line (`Study.Types.Variant`).
+  @variant_labels %{a: :one_word, b: :whole_line}
 
   # `run_index` of the first run of each topic_source block (4 writing runs, two per
   # block) — used to read back which ai_mode was drawn first within each block.
@@ -42,7 +48,8 @@ defmodule OwnershipAshChat.Study.Stats do
       sessions: session_counts(sessions),
       surveys: survey_counts(sessions),
       durations: durations(sessions),
-      randomization: randomization(sessions)
+      randomization: randomization(sessions),
+      modifications: modification_counts(sessions)
     }
   end
 
@@ -82,6 +89,22 @@ defmodule OwnershipAshChat.Study.Stats do
       writing: Map.get(by_kind, :writing, 0),
       modification: Map.get(by_kind, :modification, 0)
     }
+  end
+
+  # How the fifth run rewrote the participant's line, per variant. A modification run
+  # carries its variant and the rewritten haiku from the moment it is inserted
+  # (`Run.Changes.CreateModification`), so counting the records is enough.
+  defp modification_counts(sessions) do
+    counts =
+      sessions
+      |> Enum.flat_map(&runs/1)
+      |> Enum.filter(&(&1.kind == :modification and &1.variant))
+      |> Enum.frequencies_by(&@variant_labels[&1.variant])
+
+    @variant_labels
+    |> Map.values()
+    |> Map.new(&{&1, Map.get(counts, &1, 0)})
+    |> Map.put(:total, counts |> Map.values() |> Enum.sum())
   end
 
   defp durations(sessions) do

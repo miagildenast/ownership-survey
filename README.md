@@ -191,20 +191,22 @@ dev/test stay silent and need no secrets. Tests pin a forwarding backend
 
 #### Daily stats report
 
-Once a day the bot posts the aggregate study statistics — the same numbers
-`bin/export.sh stats` downloads (`OwnershipAshChat.Study.Stats`):
+Once a day — **and once every time the app starts** (heading
+`📊 Study stats at startup`, same body) — the bot posts the aggregate study statistics,
+the same numbers `bin/export.sh stats` downloads (`OwnershipAshChat.Study.Stats`):
 
 ```
 📊 Daily study stats — 2026-07-27
 Sessions: 42 (28 completed, 13 in progress, 1 aborted)
-Questionnaires submitted: 150 (120 writing, 30 modification)
+Modifications: 28 (one word 13, whole line 15)
 Duration of 28 finished sessions: median 18m 42s (min 9m 3s, max 1h 4m 9s)
 Randomization — topic first: assigned 21 / free 21
 Randomization — ai_mode first: block 1 with_ai 20 / without_ai 22 · block 2 with_ai 23 / without_ai 19
 ```
 
-**On by default in prod** at **09:30 server-local time**, off in dev/test. Override on the
-host (`bin/ownership_ash_chat.ini`):
+**On by default in prod** at **09:30 server-local time** (plus the report on start), off in
+dev/test — `STATS_REPORT=0` disables both. Override on the host
+(`bin/ownership_ash_chat.ini`):
 
 ```sh
 STATS_REPORT=0          # turn the report off (1/true/yes/on turn it on)

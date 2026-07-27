@@ -14,6 +14,7 @@ defmodule OwnershipAshChat.Study.StatsTest do
     {ai_modes, opts} = Keyword.pop!(opts, :ai_modes)
     {answered, opts} = Keyword.pop(opts, :answered, 0)
     {modification_answered, opts} = Keyword.pop(opts, :modification_answered, false)
+    {modification_variant, opts} = Keyword.pop(opts, :modification_variant, :a)
 
     session = generate(session(opts))
 
@@ -37,7 +38,7 @@ defmodule OwnershipAshChat.Study.StatsTest do
           session_id: session.id,
           run_index: nil,
           kind: :modification,
-          variant: :a,
+          variant: modification_variant,
           likert: @likert
         )
       )
@@ -80,12 +81,15 @@ defmodule OwnershipAshChat.Study.StatsTest do
           modification_answered: true
         )
 
-      # 20 min, assigned block first, without_ai first in both blocks, 2 of 4 submitted.
+      # 20 min, assigned block first, without_ai first in both blocks, 2 of 4 submitted,
+      # modification run of the other variant (whole line).
       b =
         completed_session(20,
           topic_source_order: [:assigned, :free],
           ai_modes: [:without_ai, :with_ai, :without_ai, :with_ai],
-          answered: 2
+          answered: 2,
+          modification_answered: true,
+          modification_variant: :b
         )
 
       # Still running: counts in the session totals but not in the durations.
@@ -106,7 +110,11 @@ defmodule OwnershipAshChat.Study.StatsTest do
     end
 
     test "counts submitted questionnaires per run kind", %{stats: stats} do
-      assert stats.surveys == %{submitted: 8, writing: 7, modification: 1}
+      assert stats.surveys == %{submitted: 9, writing: 7, modification: 2}
+    end
+
+    test "counts modification runs per variant", %{stats: stats} do
+      assert stats.modifications == %{total: 2, one_word: 1, whole_line: 1}
     end
 
     test "reports median/min/max duration over sessions with both timestamps", %{stats: stats} do
@@ -141,7 +149,8 @@ defmodule OwnershipAshChat.Study.StatsTest do
                "aborted" => 0
              }
 
-      assert decoded["surveys"]["submitted"] == 8
+      assert decoded["surveys"]["submitted"] == 9
+      assert decoded["modifications"] == %{"total" => 2, "one_word" => 1, "whole_line" => 1}
       assert decoded["randomization"]["first_ai_mode"]["block_1"]["with_ai"] == 2
       assert is_binary(decoded["generated_at"])
     end
@@ -153,6 +162,7 @@ defmodule OwnershipAshChat.Study.StatsTest do
 
       assert stats.sessions == %{total: 0, completed: 0, in_progress: 0, aborted: 0}
       assert stats.surveys == %{submitted: 0, writing: 0, modification: 0}
+      assert stats.modifications == %{total: 0, one_word: 0, whole_line: 0}
 
       assert stats.durations == %{
                sessions: 0,

@@ -274,12 +274,15 @@ Events and their hooks:
 - **session completed** — an Ash notifier `Study.Session.Notifiers.SessionEvents` on the
   `:complete` action.
 - **AI generation failed** — the ping-pong LLM call's `{:error, _}` branch (`Study.PingPong`).
-- **daily stats report** — `Notifications.DailyReport`, a GenServer started only when
-  `config :ownership_ash_chat, :stats_report, enabled: true` (prod default; dev/test off).
-  A plain `Process.send_after/3` timer fires at the configured **server-local** time
-  (default `~T[09:30:00]`, overridable via `STATS_REPORT` / `STATS_REPORT_AT`), delivers
-  `Study.Stats.collect!/0` through `Events.daily_stats/1`, then reschedules. No scheduler
-  dependency and no tz database — `NaiveDateTime.local_now/0` follows the host timezone.
+- **daily stats report / stats report on start** — `Notifications.DailyReport`, a GenServer
+  started only when `config :ownership_ash_chat, :stats_report, enabled: true` (prod
+  default; dev/test off). A plain `Process.send_after/3` timer fires at the configured
+  **server-local** time (default `~T[09:30:00]`, overridable via `STATS_REPORT` /
+  `STATS_REPORT_AT`), delivers `Study.Stats.collect!/0` through `Events.daily_stats/1`,
+  then reschedules. No scheduler dependency and no tz database —
+  `NaiveDateTime.local_now/0` follows the host timezone. On boot it additionally sends the
+  same report via `Events.startup_stats/1` from a `handle_continue/2` (so the supervisor
+  isn't blocked); suppress with the `on_start: false` config/start option.
 
 It's **best-effort**: a failed/misconfigured send is logged and swallowed, never blocking the
 study flow. Tests swap in a forwarding `Notifications.TestBackend` (via `config/test.exs`)
@@ -321,15 +324,18 @@ aggregates in memory from the **same** `:export_all` read action (sessions with 
 loaded — `compute/1` raises if they aren't), so it needs no Ash aggregates and no new
 action. Reported: session counts per status, submitted questionnaires (a run counts once
 its `likert` is non-empty) split by `kind`, median/min/max session duration
-(`completed_at - started_at`), and the randomization balance — which `topic_source` block
+(`completed_at - started_at`), the randomization balance — which `topic_source` block
 came first (from `topic_source_order`) and which `ai_mode` came first inside each block
-(from the runs with `run_index` 1 and 3).
+(from the runs with `run_index` 1 and 3) — and the modification-variant split
+(`:a` → `one_word`, `:b` → `whole_line`, counted over the `kind: :modification` runs).
 
 It rides the export stack's `stats` selector (`bin/export.sh stats` →
 `bin/export_remote.sh` → `Release.export/2`'s `:stats` clause → `mix study.export --stats`)
-**and** feeds the daily notification (`Notifications.DailyReport`, see Notifications). Add
+**and** feeds the notifications (`Notifications.DailyReport`, see Notifications). Add
 a metric in `Stats` only — both entry points pick it up; only the message text in
-`Notifications.Events.format_stats/1` needs a manual line.
+`Notifications.Events.format_stats/2` needs a manual line. The JSON keeps every metric
+even when the message drops one (the questionnaire counts are exported but no longer
+printed in the Telegram report).
 
 ### Repo conventions
 

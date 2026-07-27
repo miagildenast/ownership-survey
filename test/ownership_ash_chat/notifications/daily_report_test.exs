@@ -43,43 +43,82 @@ defmodule OwnershipAshChat.Notifications.DailyReportTest do
 
     test "enabled?/0 follows the :stats_report config" do
       original = Application.get_env(:ownership_ash_chat, :stats_report)
-      Application.put_env(:ownership_ash_chat, :stats_report, enabled: true, at: ~T[07:15:00])
+
+      Application.put_env(:ownership_ash_chat, :stats_report,
+        enabled: true,
+        at: ~T[07:15:00],
+        on_start: false
+      )
+
       on_exit(fn -> Application.put_env(:ownership_ash_chat, :stats_report, original) end)
 
       assert DailyReport.enabled?()
       assert DailyReport.scheduled_at() == ~T[07:15:00]
+      refute DailyReport.on_start?()
+    end
+
+    test "the report on start is on by default" do
+      assert DailyReport.on_start?()
     end
   end
 
-  describe "deliver_now/0" do
-    test "sends one message with the current statistics" do
+  describe "deliver_now/1" do
+    setup do
       session = generate(session(topic_source_order: [:assigned, :free]))
       generate(run(session_id: session.id, run_index: 1, ai_mode: :with_ai, likert: %{"a" => 4}))
       generate(run(session_id: session.id, run_index: 3, ai_mode: :without_ai))
+      generate(run(session_id: session.id, run_index: nil, kind: :modification, variant: :b))
 
+      :ok
+    end
+
+    test "sends one message with the current statistics" do
       DailyReport.deliver_now()
 
       assert_receive {:notification, message}
       assert message =~ "📊 Daily study stats"
       assert message =~ "Sessions: 1 (0 completed, 1 in progress, 0 aborted)"
-      assert message =~ "Questionnaires submitted: 1 (1 writing, 0 modification)"
+      assert message =~ "Modifications: 1 (0 one word, 1 whole line)"
       assert message =~ "Duration of 0 finished sessions: median n/a (min n/a, max n/a)"
       assert message =~ "topic first: assigned 1 / free 0"
       assert message =~ "block 1 with_ai 1 / without_ai 0"
       assert message =~ "block 2 with_ai 0 / without_ai 1"
+      refute message =~ "Questionnaires"
+    end
+
+    test "the startup report carries the same numbers under its own heading" do
+      DailyReport.deliver_now(:startup)
+
+      assert_receive {:notification, message}
+      assert message =~ "📊 Study stats at startup"
+      assert message =~ "Modifications: 1 (0 one word, 1 whole line)"
     end
   end
 
   describe "the scheduled process" do
     test "starts, schedules a timer and stays up without delivering" do
-      pid = start_supervised!({DailyReport, at: ~T[23:59:00], name: :daily_report_test})
+      pid =
+        start_supervised!(
+          {DailyReport, at: ~T[23:59:00], on_start: false, name: :daily_report_test}
+        )
 
       assert Process.alive?(pid)
       refute_receive {:notification, _}, 50
     end
 
+    test "reports once on start" do
+      start_supervised!({DailyReport, at: ~T[23:59:00], on_start: true, name: :daily_report_test})
+
+      assert_receive {:notification, message}
+      assert message =~ "📊 Study stats at startup"
+      refute_receive {:notification, _}, 50
+    end
+
     test "delivers and reschedules when its timer fires" do
-      pid = start_supervised!({DailyReport, at: ~T[23:59:00], name: :daily_report_test})
+      pid =
+        start_supervised!(
+          {DailyReport, at: ~T[23:59:00], on_start: false, name: :daily_report_test}
+        )
 
       send(pid, :report)
 
