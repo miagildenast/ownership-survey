@@ -165,7 +165,7 @@ far. It's **best-effort** — a failed/misconfigured send is logged and swallowe
 blocking or breaking the study flow.
 
 **Events:** app started · app stopping (graceful shutdown) · session started · session
-completed · AI generation failed (LLM error during ping-pong).
+completed · AI generation failed (LLM error during ping-pong) · daily stats report.
 
 **Enable (Telegram):** set on the host (for prod, in `bin/ownership_ash_chat.ini`)
 
@@ -189,6 +189,33 @@ Unset `NOTIFICATION_PROVIDER` (the default) selects the `Disabled` no-op backend
 dev/test stay silent and need no secrets. Tests pin a forwarding backend
 (`Notifications.TestBackend`) via `config/test.exs`.
 
+#### Daily stats report
+
+Once a day the bot posts the aggregate study statistics — the same numbers
+`bin/export.sh stats` downloads (`OwnershipAshChat.Study.Stats`):
+
+```
+📊 Daily study stats — 2026-07-27
+Sessions: 42 (28 completed, 13 in progress, 1 aborted)
+Questionnaires submitted: 150 (120 writing, 30 modification)
+Duration of 28 finished sessions: median 18m 42s (min 9m 3s, max 1h 4m 9s)
+Randomization — topic first: assigned 21 / free 21
+Randomization — ai_mode first: block 1 with_ai 20 / without_ai 22 · block 2 with_ai 23 / without_ai 19
+```
+
+**On by default in prod** at **09:30 server-local time**, off in dev/test. Override on the
+host (`bin/ownership_ash_chat.ini`):
+
+```sh
+STATS_REPORT=0          # turn the report off (1/true/yes/on turn it on)
+STATS_REPORT_AT=07:15   # local time of day ("07:15" or "07:15:00")
+```
+
+No timezone database is bundled — the time follows the **server's** timezone (Uberspace:
+`Europe/Berlin`). Implemented as a plain `Process.send_after/3` timer
+(`OwnershipAshChat.Notifications.DailyReport`), so no scheduler dependency; to send one
+immediately, call `OwnershipAshChat.Notifications.DailyReport.deliver_now()`.
+
 **Add a provider:** implement the `OwnershipAshChat.Notifications` behaviour
 (`deliver/1`) in a new backend module and add a `NOTIFICATION_PROVIDER` case in
 `config/runtime.exs`. Per-provider credentials follow the
@@ -207,6 +234,7 @@ mix study.export <session_id>              # one session, to stdout
 mix study.export --all                     # every session
 mix study.export --all --status completed  # filter by status
 mix study.export --all -o sessions.json    # write to a file
+mix study.export --stats                   # aggregate statistics instead of raw data
 ```
 
 Or from IEx (`iex -S mix`), the same code interfaces the task uses:
@@ -219,6 +247,9 @@ OwnershipAshChat.Study.export_session!("<session_id>")
 # all (optionally filtered)
 OwnershipAshChat.Study.list_sessions_for_export!(%{status: :completed})
 |> OwnershipAshChat.Study.Export.to_json!()
+
+# aggregate statistics (counts, median duration, randomization balance)
+OwnershipAshChat.Study.Stats.collect!()
 ```
 
 #### On prod
@@ -231,7 +262,14 @@ path you give:
 ./bin/export.sh                              # all -> ./study_export_all.json
 ./bin/export.sh completed                    # completed -> ./study_export_completed.json
 ./bin/export.sh completed ~/Desktop/x.json   # completed -> given local path
+./bin/export.sh stats                        # statistics -> ./study_export_stats.json
 ```
+
+The `stats` selector produces the aggregate statistics JSON
+(`OwnershipAshChat.Study.Stats`) instead of session data: session counts per status,
+submitted questionnaires per run kind, median/min/max session duration, and the
+randomization balance (which `topic_source` block came first, which `ai_mode` came first
+inside each block). Same numbers as the daily notification.
 
 Mix tasks don't ship in a release, so the server side (`bin/export_remote.sh`, invoked
 over SSH) loads the prod env from the supervisord service file and calls

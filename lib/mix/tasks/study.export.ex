@@ -21,6 +21,9 @@ defmodule Mix.Tasks.Study.Export do
       # All sessions with a given status (in_progress | completed | aborted)
       mix study.export --all --status completed
 
+      # Aggregate statistics instead of raw data (no session data, just counts)
+      mix study.export --stats
+
       # Write to a file instead of stdout
       mix study.export --session-id <session_id> --output session.json
       mix study.export --all -o sessions.json
@@ -30,9 +33,11 @@ defmodule Mix.Tasks.Study.Export do
 
   alias OwnershipAshChat.Study
   alias OwnershipAshChat.Study.Export
+  alias OwnershipAshChat.Study.Stats
 
   @switches [
     all: :boolean,
+    stats: :boolean,
     status: :string,
     output: :string,
     session_id: :string,
@@ -57,6 +62,9 @@ defmodule Mix.Tasks.Study.Export do
 
   defp build_json(opts) do
     cond do
+      opts[:stats] ->
+        Stats.collect!() |> Stats.to_json!()
+
       opts[:all] ->
         opts |> status_filter() |> Study.list_sessions_for_export!() |> Export.to_json!()
 
@@ -77,7 +85,7 @@ defmodule Mix.Tasks.Study.Export do
   defp usage_error,
     do:
       Mix.raise(
-        "Provide --session-id, --case-id, --case-number or --all. See `mix help study.export`."
+        "Provide --session-id, --case-id, --case-number, --all or --stats. See `mix help study.export`."
       )
 
   defp status_filter(opts) do

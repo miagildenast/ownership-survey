@@ -274,6 +274,12 @@ Events and their hooks:
 - **session completed** — an Ash notifier `Study.Session.Notifiers.SessionEvents` on the
   `:complete` action.
 - **AI generation failed** — the ping-pong LLM call's `{:error, _}` branch (`Study.PingPong`).
+- **daily stats report** — `Notifications.DailyReport`, a GenServer started only when
+  `config :ownership_ash_chat, :stats_report, enabled: true` (prod default; dev/test off).
+  A plain `Process.send_after/3` timer fires at the configured **server-local** time
+  (default `~T[09:30:00]`, overridable via `STATS_REPORT` / `STATS_REPORT_AT`), delivers
+  `Study.Stats.collect!/0` through `Events.daily_stats/1`, then reschedules. No scheduler
+  dependency and no tz database — `NaiveDateTime.local_now/0` follows the host timezone.
 
 It's **best-effort**: a failed/misconfigured send is logged and swallowed, never blocking the
 study flow. Tests swap in a forwarding `Notifications.TestBackend` (via `config/test.exs`)
@@ -307,6 +313,23 @@ wrappers broken.** Trace the call path, not just the Elixir symbol; the shell se
 A new selector therefore touches: resource identity → domain define → export map (if a new
 field) → mix task → release helper → **both** shell scripts. Deploying it to prod also
 requires a `./bin/deploy.sh` (rebuilds the release + runs `bin/migrate`).
+
+### Study statistics (`Study.Stats`)
+
+`OwnershipAshChat.Study.Stats` is the lean monitoring counterpart to `Export`: it computes
+aggregates in memory from the **same** `:export_all` read action (sessions with `runs`
+loaded — `compute/1` raises if they aren't), so it needs no Ash aggregates and no new
+action. Reported: session counts per status, submitted questionnaires (a run counts once
+its `likert` is non-empty) split by `kind`, median/min/max session duration
+(`completed_at - started_at`), and the randomization balance — which `topic_source` block
+came first (from `topic_source_order`) and which `ai_mode` came first inside each block
+(from the runs with `run_index` 1 and 3).
+
+It rides the export stack's `stats` selector (`bin/export.sh stats` →
+`bin/export_remote.sh` → `Release.export/2`'s `:stats` clause → `mix study.export --stats`)
+**and** feeds the daily notification (`Notifications.DailyReport`, see Notifications). Add
+a metric in `Stats` only — both entry points pick it up; only the message text in
+`Notifications.Events.format_stats/1` needs a manual line.
 
 ### Repo conventions
 

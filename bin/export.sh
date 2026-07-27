@@ -14,6 +14,8 @@ set -euo pipefail
 #     ./bin/export.sh --session-id <session_id> [local_out]
 #     ./bin/export.sh --case-id <case_id> [local_out]
 #     ./bin/export.sh --case-number <case_number> [local_out]
+#
+#     ./bin/export.sh stats [local_out]            # aggregate stats -> ./study_export_stats.json
 
 : "${UBERSPACE_USER:?set UBERSPACE_USER (see .envrc.private.example)}"
 : "${UBERSPACE_SERVER:?set UBERSPACE_SERVER (see .envrc.private.example)}"
@@ -36,6 +38,11 @@ case "${1:-all}" in
     remote_args=(--case-number "$id")
     slug="casenum_${id}"
     local_out="${3:-study_export_${slug}.json}"
+    ;;
+  stats|--stats)
+    remote_args=(stats)
+    slug="stats"
+    local_out="${2:-study_export_stats.json}"
     ;;
   *)
     status="${1:-all}"

@@ -4,7 +4,7 @@
 # the export JSON to the given path via the release's `eval` — no running node /
 # epmd needed. Don't call this from your laptop; use bin/export.sh.
 #
-#     ./bin/export_remote.sh <all|in_progress|completed|aborted> <output_path>
+#     ./bin/export_remote.sh <all|in_progress|completed|aborted|stats> <output_path>
 #     ./bin/export_remote.sh --session-id <session_id> <output_path>
 #     ./bin/export_remote.sh --case-id <case_id> <output_path>
 #     ./bin/export_remote.sh --case-number <case_number> <output_path>
@@ -30,11 +30,12 @@ case "${1:-all}" in
     arg="{:case_number, \"$id\"}"
     ;;
   all)         output="${2:?output path required}"; arg="nil" ;;
+  stats|--stats) output="${2:?output path required}"; arg=":stats" ;;
   in_progress) output="${2:?output path required}"; arg=":in_progress" ;;
   completed)   output="${2:?output path required}"; arg=":completed" ;;
   aborted)     output="${2:?output path required}"; arg=":aborted" ;;
   *)
-    echo "Unknown selector '$1' (use: all|in_progress|completed|aborted|--session-id <id>|--case-id <id>|--case-number <n>)" >&2
+    echo "Unknown selector '$1' (use: all|in_progress|completed|aborted|stats|--session-id <id>|--case-id <id>|--case-number <n>)" >&2
     exit 1
     ;;
 esac

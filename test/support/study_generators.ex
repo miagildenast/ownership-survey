@@ -13,7 +13,12 @@ defmodule OwnershipAshChat.StudyGenerators do
       defaults: [
         case_id: "case-#{System.unique_integer([:positive])}",
         case_number: "num-#{System.unique_integer([:positive])}",
-        topic_source_order: [:free, :assigned]
+        topic_source_order: [:free, :assigned],
+        # Pin the otherwise-accepted lifecycle fields so the generator doesn't fill
+        # them with random data (same reasoning as in `run/1` below).
+        status: :in_progress,
+        started_at: nil,
+        completed_at: nil
       ],
       overrides: opts
     )
@@ -37,6 +42,8 @@ defmodule OwnershipAshChat.StudyGenerators do
         transcript: [],
         final_haiku: nil,
         topic: nil,
+        likert: %{},
+        open_answers: %{},
         started_at: nil,
         completed_at: nil,
         session_id: session_id

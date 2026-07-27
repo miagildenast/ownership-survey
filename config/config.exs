@@ -55,7 +55,10 @@ config :ownership_ash_chat,
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [OwnershipAshChat.Study],
   # Fixed topic shown (and prompted) in all `topic_source: :assigned` study runs.
-  study_assigned_topic: "Jahreszeiten"
+  study_assigned_topic: "Jahreszeiten",
+  # Daily aggregate stats notification (OwnershipAshChat.Notifications.DailyReport).
+  # Off by default; prod enables it in config/runtime.exs. `at` is server-local time.
+  stats_report: [enabled: false, at: ~T[09:30:00]]
 
 # Configure the endpoint
 config :ownership_ash_chat, OwnershipAshChatWeb.Endpoint,

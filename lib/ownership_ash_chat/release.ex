@@ -34,6 +34,8 @@ defmodule OwnershipAshChat.Release do
     - `{:session_id, id}` — the single session with that `session_id` (UUID)
     - `{:case_id, id}` — the single session with that `case_id`
     - `{:case_number, n}` — the single session with that `case_number`
+    - `:stats` — aggregate statistics over all sessions instead of raw data
+      (`OwnershipAshChat.Study.Stats`)
 
   With `path`, writes the JSON to that file; without, returns the JSON string.
   """
@@ -48,6 +50,10 @@ defmodule OwnershipAshChat.Release do
       nil -> json
       path -> File.write!(path, json)
     end
+  end
+
+  defp export_json(:stats) do
+    OwnershipAshChat.Study.Stats.collect!() |> OwnershipAshChat.Study.Stats.to_json!()
   end
 
   defp export_json({:session_id, id}) do

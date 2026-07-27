@@ -12,18 +12,22 @@ defmodule OwnershipAshChat.Application do
     # missing config raises here and aborts boot (fail-fast).
     OwnershipAshChat.Study.Config.load!()
 
-    children = [
-      OwnershipAshChatWeb.Telemetry,
-      OwnershipAshChat.Repo,
-      {DNSCluster,
-       query: Application.get_env(:ownership_ash_chat, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: OwnershipAshChat.PubSub},
-      # Start a worker by calling: OwnershipAshChat.Worker.start_link(arg)
-      # {OwnershipAshChat.Worker, arg},
-      OwnershipAshChatWeb.Endpoint,
-      # Last child: emits app-started now / app-stopping on graceful shutdown.
-      OwnershipAshChat.Notifications.Lifecycle
-    ]
+    children =
+      [
+        OwnershipAshChatWeb.Telemetry,
+        OwnershipAshChat.Repo,
+        {DNSCluster,
+         query: Application.get_env(:ownership_ash_chat, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: OwnershipAshChat.PubSub},
+        # Start a worker by calling: OwnershipAshChat.Worker.start_link(arg)
+        # {OwnershipAshChat.Worker, arg},
+        OwnershipAshChatWeb.Endpoint
+      ] ++
+        daily_report_children() ++
+        [
+          # Last child: emits app-started now / app-stopping on graceful shutdown.
+          OwnershipAshChat.Notifications.Lifecycle
+        ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -38,6 +42,15 @@ defmodule OwnershipAshChat.Application do
     # --- end DEV seed ---
 
     result
+  end
+
+  # Daily stats notification — only started when configured (see DailyReport).
+  defp daily_report_children do
+    if OwnershipAshChat.Notifications.DailyReport.enabled?() do
+      [OwnershipAshChat.Notifications.DailyReport]
+    else
+      []
+    end
   end
 
   # --- DEV: boot-time writing-run seeder (delete with the block above) ---

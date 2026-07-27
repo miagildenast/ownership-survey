@@ -93,6 +93,29 @@ if config_env() != :test do
   config :ownership_ash_chat, OwnershipAshChat.Notifications, notifications_backend
 end
 
+# Daily aggregate stats notification (OwnershipAshChat.Notifications.DailyReport):
+# one message per day with the same numbers `bin/export.sh stats` downloads. On by
+# default in prod, off in dev; STATS_REPORT=0/1 overrides. STATS_REPORT_AT is a
+# server-local time of day ("09:30" or "09:30:00").
+if config_env() != :test do
+  stats_report_enabled =
+    case System.get_env("STATS_REPORT") do
+      nil -> config_env() == :prod
+      value -> String.downcase(value) in ~w(1 true yes on)
+    end
+
+  stats_report_at =
+    case System.get_env("STATS_REPORT_AT") do
+      nil -> ~T[09:30:00]
+      <<hh::binary-2, ?:, mm::binary-2>> -> Time.from_iso8601!("#{hh}:#{mm}:00")
+      value -> Time.from_iso8601!(value)
+    end
+
+  config :ownership_ash_chat, :stats_report,
+    enabled: stats_report_enabled,
+    at: stats_report_at
+end
+
 # Study config file location override. Point this at a stable path OUTSIDE the
 # baked release (e.g. the rsync'd source tree) so content updates to config.yml
 # can be shipped + hot-reloaded (`OwnershipAshChat.Study.Config.reload/0`)

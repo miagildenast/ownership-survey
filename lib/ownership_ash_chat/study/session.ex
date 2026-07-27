@@ -15,8 +15,19 @@ defmodule OwnershipAshChat.Study.Session do
   actions do
     defaults [:read, :destroy]
 
+    # Plain create, used by fixtures/dev seeding. The lifecycle fields are accepted
+    # here (unlike in `:start`, which derives them) so a fixture can pin them — the
+    # `Run` `:create` action accepts its timestamps the same way.
     create :create do
-      accept [:case_id, :case_number, :topic_source_order, :metadata]
+      accept [
+        :case_id,
+        :case_number,
+        :topic_source_order,
+        :metadata,
+        :status,
+        :started_at,
+        :completed_at
+      ]
     end
 
     # Token entry: the upstream tool sends the `case_id` via `/start?case_id=…`.
