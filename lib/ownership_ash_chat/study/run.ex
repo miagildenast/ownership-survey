@@ -48,6 +48,24 @@ defmodule OwnershipAshChat.Study.Run do
       validate OwnershipAshChat.Study.Run.Validations.OpenEndedAnswers
     end
 
+    # Balancing input (`Study.Balance`): the two runs per session that carry the drawn
+    # writing sequence — run 1 gives the first block's topic_source *and* its leading
+    # ai_mode, run 3 the second block's leading ai_mode. Aborted sessions don't count.
+    read :randomization_marks do
+      prepare build(select: [:session_id, :run_index, :topic_source, :ai_mode])
+
+      filter expr(kind == :writing and run_index in [1, 3] and session.status != :aborted)
+    end
+
+    # Balancing input (`Study.Balance`): the assigned modification variants. Carries
+    # `session_id` so a caller can split off one session's own draw and count the rest —
+    # the "session completed" notification reports the split as it was *before* that draw.
+    read :variant_marks do
+      prepare build(select: [:session_id, :variant])
+
+      filter expr(kind == :modification and not is_nil(variant) and session.status != :aborted)
+    end
+
     create :create do
       accept [
         :run_index,

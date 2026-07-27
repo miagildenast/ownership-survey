@@ -6,8 +6,9 @@ defmodule OwnershipAshChat.Study.Run.Changes.CreateModification do
 
     * picks the "best" writing run — highest average Likert score, random tie-break
       (`Randomization.best_run/1`);
-    * picks a modification variant at random from `Types.Variant` (`:a` = one word,
-      `:b` = one line);
+    * picks a modification variant — balanced, not a coin flip: `Balance.variant_counts/1`
+      supplies the split so far and `Randomization.draw_variant/1` picks the rarer of
+      `:a` (one word) / `:b` (one line), random only on a tie;
     * picks the target line — the participant's own first line. Only user-written
       lines may be modified (`Transcript.first_user_index/1`): `:free && :with_ai`
       → line 1, `:assigned && :with_ai` → line 2, `:without_ai` → line 1;
@@ -24,9 +25,8 @@ defmodule OwnershipAshChat.Study.Run.Changes.CreateModification do
 
   require Ash.Query
 
-  alias OwnershipAshChat.Study.{PingPong, Randomization}
+  alias OwnershipAshChat.Study.{Balance, PingPong, Randomization}
   alias OwnershipAshChat.Study.Run.Transcript
-  alias OwnershipAshChat.Study.Types.Variant
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -34,7 +34,10 @@ defmodule OwnershipAshChat.Study.Run.Changes.CreateModification do
       session_id = Ash.Changeset.get_argument(changeset, :session_id)
       best = Randomization.best_run(writing_runs(session_id))
 
-      variant = Enum.random(Variant.values())
+      # The draw log is dropped here: the notification for this assignment goes out with
+      # the session's `:complete` event (see Session.Notifiers.SessionEvents), which
+      # rebuilds the reason from the counts excluding this session's own run.
+      {variant, _draw} = Randomization.draw_variant(Balance.variant_counts())
       transcript = best.transcript || []
       line_index = Transcript.first_user_index(transcript) || 0
       original_haiku = best.final_haiku

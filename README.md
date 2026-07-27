@@ -1,9 +1,9 @@
 # OwnershipAshChat — Haiku Study
 
 Phoenix/Ash application backing a research study in which participants write haikus
-(see `AGENTS.md` for the full study concept). The participant walks a randomized sequence
-of writing runs at `/study`; entry is normally via the upstream `case_id` link, but a
-one-click dev route starts a randomized session locally.
+(see `AGENTS.md` for the full study concept). The participant walks a
+[balanced randomized sequence](#randomization-balance) of writing runs at `/study`; entry is
+normally via the upstream `case_id` link, but a one-click dev route starts a session locally.
 
 ## Table of contents
 
@@ -16,6 +16,8 @@ one-click dev route starts a randomized session locally.
   - [Hosting on Uberspace](#hosting-on-uberspace)
   - [Building a release](#building-a-release)
   - [Notifications](#notifications)
+    - [Daily stats report](#daily-stats-report)
+    - [Randomization balance](#randomization-balance)
   - [Exporting study data](#exporting-study-data)
     - [Locally](#locally)
     - [On prod](#on-prod)
@@ -164,8 +166,9 @@ events. The backend is chosen at runtime by env var; **Telegram** is the only ba
 far. It's **best-effort** — a failed/misconfigured send is logged and swallowed, never
 blocking or breaking the study flow.
 
-**Events:** app started · app stopping (graceful shutdown) · session started · session
-completed · AI generation failed (LLM error during ping-pong) · daily stats report.
+**Events:** app started · app stopping (graceful shutdown) · session started (with the drawn
+condition sequence and why it was drawn) · session completed (with the modification variant) ·
+AI generation failed (LLM error during ping-pong) · daily stats report.
 
 **Enable (Telegram):** set on the host (for prod, in `bin/ownership_ash_chat.ini`)
 
@@ -208,6 +211,30 @@ modifications: one word 13 / whole line 15
 ```
 
 Labels are bold in the chat: messages are sent with Telegram's `parse_mode: "MarkdownV2"`.
+
+#### Randomization balance
+
+Conditions are **not** assigned by an independent coin flip per participant — that drifts
+badly at this study's sample size (14 sessions once produced a 3 / 11 split on the
+modification variant). Each assignment instead takes the **least-used** cell so far and only
+falls back to chance on a tie:
+
+- **Writing sequence** — balanced over all 8 valid orders as a whole
+  (`{first topic_source, leading ai_mode of block 1, of block 2}`), which keeps the three
+  splits above balanced too.
+- **Modification variant** — balanced over `one word` / `whole line`.
+- Counters come from the database (aborted sessions excluded), so this works on a fresh
+  install *and* on a running study: an existing imbalance is actively caught up, without a
+  migration or a config switch.
+
+Operationally that means the `Randomization` / `modifications` lines above should keep
+converging on 50/50 as sessions come in. A persistent lopsided split is a **signal**, not
+noise — check whether many sessions are being abandoned (an abandoned session still consumed
+its cell until it is marked `:aborted`).
+
+The "session started" message names the drawn combination and why it was drawn ("the only one
+of the 8 with 0 draws so far — forced"); "session completed" does the same for the variant. So
+the chat log doubles as an audit trail of the assignment for every participant.
 
 **On by default in prod** at **09:30 server-local time** (plus the report on start), off in
 dev/test — `STATS_REPORT=0` disables both. Override on the host
@@ -276,7 +303,8 @@ The `stats` selector produces the aggregate statistics JSON
 (`OwnershipAshChat.Study.Stats`) instead of session data: session counts per status,
 submitted questionnaires per run kind, median/min/max session duration, and the
 randomization balance (which `topic_source` block came first, which `ai_mode` came first
-inside each block). Same numbers as the daily notification.
+inside each block). Same numbers as the daily notification — and the same counters the
+assignment balances against, see [Randomization balance](#randomization-balance).
 
 Mix tasks don't ship in a release, so the server side (`bin/export_remote.sh`, invoked
 over SSH) loads the prod env from the supervisord service file and calls

@@ -85,18 +85,38 @@ fifth modification run.
 `topic_source` is the **outer block**, `ai_mode` is the **inner factor**. Both `ai_mode`
 values of one `topic_source` are completed back-to-back before switching `topic_source`:
 
-1. The two **`topic_source`** values (`:assigned`, `:free`) are assigned in **random
-   order**.
+1. One of the two **`topic_source`** values (`:assigned`, `:free`) opens the session.
 2. On entering a `topic_source`, one of the two **`ai_mode`** values (`:with_ai`,
-   `:without_ai`) is chosen **at random**.
+   `:without_ai`) leads the block.
 3. When that run completes, the **other `ai_mode`** of the **same `topic_source`** is run.
-4. **Only then** the participant moves to the **next `topic_source`** (again random
-   `ai_mode` order within).
+4. **Only then** the participant moves to the **next `topic_source`** (again both
+   `ai_mode`s, in the drawn order).
 
 This yields 4 runs whose presented order is one of 8 valid sequences (2 `topic_source`
-orders × 2 `ai_mode` orders per `topic_source`).
+orders × 2 `ai_mode` orders per `topic_source`). A sequence is fully described by three
+binary choices — `{first_topic_source, first_ai_mode_of_block_1, first_ai_mode_of_block_2}`.
 
 Each run ends with a **Likert survey**.
+
+#### The draw is balanced, not an independent coin flip
+
+Drawing each factor independently drifts at this study's sample sizes (14 sessions gave a
+5 / 9 split on "which `topic_source` came first" and 3 / 11 on the modification variant).
+So the draw is **adaptive**, over the 8 sequence cells as a whole:
+
+- `Study.Balance.writing_snapshot/0` counts how often each sequence has been assigned so
+  far — reconstructed from every non-`:aborted` session's runs with `run_index` 1 and 3
+  (same derivation as `Study.Stats`) — and derives the three marginal splits alongside it.
+- `Randomization.draw_writing_plan/1` picks the **least-used** cell; `Enum.random/1` only
+  breaks a tie. On an empty database every cell ties → uniform random draw; on a database
+  that already drifted the draw actively catches up. Balancing the 8 cells implies balancing
+  the marginals the stats report prints.
+- `Randomization` itself stays **pure** (counters in, plan out), so it is testable without
+  a database. Each draw also returns a **draw log** (`chosen`, `count`, `tied`, `others`,
+  `total`) — the input for the Telegram message, see [Notifications](#notifications).
+- Not transactional: two sessions starting in the very same moment can read the same
+  counters and land on the same cell. Accepted at this participant frequency; the next
+  draw corrects it.
 
 ### Ping-pong mode (with AI)
 
@@ -134,7 +154,9 @@ An additional, **fifth run** builds on the results:
    `:assigned && :with_ai` → line 2, `:without_ai` → line 1. The chatbot is asked for a
    new version of just that one line, which is **spliced back in** so every other line
    stays byte-identical.
-3. Two **variants**, chosen at random:
+3. Two **variants**, balanced the same way as the writing sequence — `Balance.variant_counts/0`
+   supplies the split so far, `Randomization.draw_variant/1` picks the rarer one and only
+   breaks a tie at random:
    - **5a** – only **one word** in the target line is changed
    - **5b** – the whole **target line** is replaced
 4. Afterwards the **Likert scale is asked again** (rating of the modified version).
@@ -276,9 +298,15 @@ Events and their hooks:
 - **app started / app stopping** — `Notifications.Lifecycle`, a GenServer registered last in
   `application.ex` that traps exits.
 - **session started** — a hook in `Study.Session.Changes.SeedRuns` (fresh-insert branch
-  only).
+  only). Passes the draw log + marginal splits into `Events.session_started/2`, so the
+  message lists the four runs in presented order and explains the balanced draw: how rare
+  the chosen cell was, whether it was forced or a random tie-break, and — only when it
+  applies — which lagging split it corrects. Called without a draw log it stays a one-liner.
 - **session completed** — an Ash notifier `Study.Session.Notifiers.SessionEvents` on the
-  `:complete` action.
+  `:complete` action. Reads `Balance.variant_split/1` (the session's own modification
+  variant plus the split *before* that draw, in a single read) and hands it to
+  `Events.session_completed/2`, which names the variant and why it was picked. Sessions
+  without a fifth run keep the one-liner.
 - **AI generation failed** — the ping-pong LLM call's `{:error, _}` branch (`Study.PingPong`).
 - **daily stats report / stats report on start** — `Notifications.DailyReport`, a GenServer
   started only when `config :ownership_ash_chat, :stats_report, enabled: true` (prod
@@ -342,6 +370,12 @@ a metric in `Stats` only — both entry points pick it up; only the message text
 `Notifications.Events.format_stats/2` needs a manual line. The JSON keeps every metric
 even when the message drops one (the questionnaire counts are exported but no longer
 printed in the Telegram report).
+
+`Study.Balance` is the write-side sibling: same derivations, but read *before* an assignment
+so the draw can be balanced (see [Nested randomization](#nested-randomization-block-structure)).
+It reads two lean actions on `Run` (`:randomization_marks`, `:variant_marks`) instead of
+`:export_all`, because it runs on every session start and doesn't need transcripts. Keep the
+two in sync: a metric the report prints and a counter the draw balances should agree.
 
 ### Repo conventions
 

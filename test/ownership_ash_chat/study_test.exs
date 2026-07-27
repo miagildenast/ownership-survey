@@ -4,6 +4,7 @@ defmodule OwnershipAshChat.StudyTest do
   import OwnershipAshChat.StudyGenerators
 
   alias OwnershipAshChat.Study
+  alias OwnershipAshChat.Study.Randomization
 
   describe "create_session/1" do
     test "creates a session with defaults" do
@@ -89,6 +90,30 @@ defmodule OwnershipAshChat.StudyTest do
 
       loaded = Study.get_session!(first.id, load: [:runs])
       assert length(loaded.runs) == 4
+    end
+
+    test "eight sessions cover all eight sequences exactly once" do
+      sequences =
+        for _ <- 1..8 do
+          session = Study.start_session!(start_params())
+          runs = Study.get_session!(session.id, load: [:runs]).runs
+          by_index = Map.new(runs, &{&1.run_index, &1})
+
+          {by_index[1].topic_source, by_index[1].ai_mode, by_index[3].ai_mode}
+        end
+
+      # Balanced draw: each cell is taken before any is repeated, which also makes every
+      # marginal split of the stats report land at 4:4.
+      assert Enum.sort(sequences) == Enum.sort(Randomization.sequences())
+
+      assert sequences |> Enum.map(&elem(&1, 0)) |> Enum.frequencies() ==
+               %{assigned: 4, free: 4}
+
+      assert sequences |> Enum.map(&elem(&1, 1)) |> Enum.frequencies() ==
+               %{with_ai: 4, without_ai: 4}
+
+      assert sequences |> Enum.map(&elem(&1, 2)) |> Enum.frequencies() ==
+               %{with_ai: 4, without_ai: 4}
     end
 
     test "rejects a blank case_id" do
@@ -239,6 +264,19 @@ defmodule OwnershipAshChat.StudyTest do
       # The AI-written outer lines are preserved unchanged.
       assert Enum.at(mod.transcript, 0)["role"] == "ai"
       assert Enum.at(mod.transcript, 2)["role"] == "ai"
+    end
+
+    test "balances the variant across sessions instead of flipping a coin" do
+      variants =
+        for _ <- 1..4 do
+          session = generate(session())
+          complete_solo_run(session, 1)
+
+          Study.create_modification_run!(session.id).variant
+        end
+
+      # Four draws against the running split → an exact 2:2, whatever the first pick was.
+      assert Enum.frequencies(variants) == %{a: 2, b: 2}
     end
 
     test "picks the writing run with the highest Likert average" do
