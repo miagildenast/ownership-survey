@@ -24,15 +24,22 @@ defmodule OwnershipAshChat.NotificationsTest do
       assert :ok = Notifications.deliver("x")
 
       Events.app_started()
-      assert_receive {:notification, "🚀 App started"}
+      assert_receive {:notification, "🚀 *App started*"}
 
       Events.app_stopping()
-      assert_receive {:notification, "🛑 App stopping"}
+      assert_receive {:notification, "🛑 *App stopping*"}
     end
 
     test "ai_failure includes the reason" do
       Events.ai_failure(:timeout)
-      assert_receive {:notification, "⚠️ AI generation failed: :timeout"}
+      assert_receive {:notification, "⚠️ *AI generation failed:* :timeout"}
+    end
+
+    test "interpolated data is escaped for Telegram's MarkdownV2 parse mode" do
+      Events.ai_failure("a_b (c). *d*")
+
+      assert_receive {:notification, message}
+      assert message == ~S|⚠️ *AI generation failed:* "a\_b \(c\)\. \*d\*"|
     end
   end
 
@@ -45,7 +52,10 @@ defmodule OwnershipAshChat.NotificationsTest do
         case_number: case_number
       })
 
-      assert_receive {:notification, "🟢 Session started — case " <> ^case_number}
+      # The dash in the case number is MarkdownV2-reserved, so it arrives escaped.
+      escaped = Events.escape(case_number)
+
+      assert_receive {:notification, "🟢 *Session started* — case " <> ^escaped}
     end
 
     test "completing a session announces session completed with the case number" do
@@ -53,8 +63,8 @@ defmodule OwnershipAshChat.NotificationsTest do
 
       Study.complete_session!(session)
 
-      assert_receive {:notification, "✅ Session completed — case " <> received_case}
-      assert received_case == session.case_number
+      assert_receive {:notification, "✅ *Session completed* — case " <> received_case}
+      assert received_case == Events.escape(session.case_number)
     end
   end
 end

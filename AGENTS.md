@@ -265,6 +265,12 @@ backend is selected in `config/runtime.exs` (guarded `if config_env() != :test`)
 
 Call sites go through `Notifications.Events` (English message formatters, fire-and-forget
 via `Task.start` — except `app_stopping`, which is synchronous), never `deliver/1` directly.
+Messages are **Telegram MarkdownV2** (`Notifications.Telegram` posts them with
+`parse_mode: "MarkdownV2"`). That mode reserves `_ * [ ] ( ) ~ ` > # + - = | { } . !`
+*everywhere*, and one unescaped occurrence makes Telegram reject the whole message (HTTP
+400) — so **never write literal markup**: build every message from `Events.bold/1`,
+`Events.italic/1` and `Events.escape/1`, which escape first and wrap after. That applies to
+static copy too (`ai_mode first:`, an ISO date), not just interpolated data.
 Events and their hooks:
 
 - **app started / app stopping** — `Notifications.Lifecycle`, a GenServer registered last in

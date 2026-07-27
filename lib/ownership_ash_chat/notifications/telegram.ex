@@ -8,6 +8,9 @@ defmodule OwnershipAshChat.Notifications.Telegram do
   (wired into `config :ownership_ash_chat, :notifications` in `config/runtime.exs`).
   Missing credentials → a silent no-op. Never raises: any transport error is logged and
   returned as `{:error, _}`.
+
+  Sent with `parse_mode: "MarkdownV2"` — see `OwnershipAshChat.Notifications.Events`,
+  which builds the messages and escapes every character that mode reserves.
   """
   @behaviour OwnershipAshChat.Notifications
 
@@ -32,7 +35,9 @@ defmodule OwnershipAshChat.Notifications.Telegram do
   defp post(token, chat_id, message) do
     url = "https://api.telegram.org/bot#{token}/sendMessage"
 
-    case Req.post(url, json: %{chat_id: chat_id, text: message}, receive_timeout: 5_000) do
+    body = %{chat_id: chat_id, text: message, parse_mode: "MarkdownV2"}
+
+    case Req.post(url, json: body, receive_timeout: 5_000) do
       {:ok, %Req.Response{status: status}} when status in 200..299 ->
         :ok
 

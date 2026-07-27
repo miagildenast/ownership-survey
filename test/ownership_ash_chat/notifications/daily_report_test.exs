@@ -76,13 +76,17 @@ defmodule OwnershipAshChat.Notifications.DailyReportTest do
       DailyReport.deliver_now()
 
       assert_receive {:notification, message}
-      assert message =~ "📊 Daily study stats"
-      assert message =~ "Sessions: 1 (0 completed, 1 in progress, 0 aborted)"
-      assert message =~ "Modifications: 1 (0 one word, 1 whole line)"
-      assert message =~ "Duration of 0 finished sessions: median n/a (min n/a, max n/a)"
-      assert message =~ "topic first: assigned 1 / free 0"
-      assert message =~ "block 1 with_ai 1 / without_ai 0"
-      assert message =~ "block 2 with_ai 0 / without_ai 1"
+      assert message =~ ~S(*📊 Daily study stats — )
+      # Parens are the sigil delimiter here, so use | for the lines that contain them.
+      assert message =~ ~S|*Sessions:* 1 _\(0 completed, 1 in progress, 0 aborted\)_|
+      assert message =~ ~S|*Duration:* median n/a _\(min n/a, max n/a, over 0 finished\)_|
+      assert message =~ ~S(*Randomization*)
+      assert message =~ ~S(*topic first:* assigned 1 / free 0)
+
+      assert message =~
+               ~S(*ai\_mode first:* block 1 with\_ai 1 / without\_ai 0 · block 2 with\_ai 0 / without\_ai 1)
+
+      assert message =~ ~S(*modifications:* one word 0 / whole line 1)
       refute message =~ "Questionnaires"
     end
 
@@ -90,8 +94,8 @@ defmodule OwnershipAshChat.Notifications.DailyReportTest do
       DailyReport.deliver_now(:startup)
 
       assert_receive {:notification, message}
-      assert message =~ "📊 Study stats at startup"
-      assert message =~ "Modifications: 1 (0 one word, 1 whole line)"
+      assert message =~ ~S(*📊 Study stats at startup — )
+      assert message =~ ~S(*modifications:* one word 0 / whole line 1)
     end
   end
 

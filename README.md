@@ -197,12 +197,17 @@ the same numbers `bin/export.sh stats` downloads (`OwnershipAshChat.Study.Stats`
 
 ```
 📊 Daily study stats — 2026-07-27
+
 Sessions: 42 (28 completed, 13 in progress, 1 aborted)
-Modifications: 28 (one word 13, whole line 15)
-Duration of 28 finished sessions: median 18m 42s (min 9m 3s, max 1h 4m 9s)
-Randomization — topic first: assigned 21 / free 21
-Randomization — ai_mode first: block 1 with_ai 20 / without_ai 22 · block 2 with_ai 23 / without_ai 19
+Duration: median 18m 42s (min 9m 3s, max 1h 4m 9s, over 28 finished)
+
+Randomization
+topic first: assigned 21 / free 21
+ai_mode first: block 1 with_ai 20 / without_ai 22 · block 2 with_ai 23 / without_ai 19
+modifications: one word 13 / whole line 15
 ```
+
+Labels are bold in the chat: messages are sent with Telegram's `parse_mode: "MarkdownV2"`.
 
 **On by default in prod** at **09:30 server-local time** (plus the report on start), off in
 dev/test — `STATS_REPORT=0` disables both. Override on the host
