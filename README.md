@@ -7,6 +7,7 @@ normally via the upstream `case_id` link, but a one-click dev route starts a ses
 
 ## Table of contents
 
+- [Flow overview](#flow-overview)
 - [Setup](#setup)
 - [LLM backend](#llm-backend)
 - [Development](#development)
@@ -22,6 +23,37 @@ normally via the upstream `case_id` link, but a one-click dev route starts a ses
     - [Locally](#locally)
     - [On prod](#on-prod)
 - [Learn more](#learn-more)
+
+## Flow overview
+
+Called from outside via `case_id`, runs the writing + Likert loop internally, then both
+saves to the DB and redirects the participant back out (link carries the UUID). See
+`AGENTS.md` for the full study concept.
+
+```mermaid
+flowchart TD
+    subgraph EXT["Upstream tool"]
+        A["/start?case_id=..."]
+        G["redirect_url?session_id=...<br/>(for dataset matching)"]
+    end
+
+    subgraph US["Our app"]
+        B["Session started / resumed"]
+        C["4 writing runs<br/>(topic & AI condition vary)<br/>+ Likert after each"]
+        D["Modification run:<br/>best haiku's own line rewritten<br/>+ Likert"]
+        E["Session complete"]
+        F[("Saved to DB")]
+    end
+
+    A --> B --> C --> D --> E
+    E --> F
+    E --> G
+
+    classDef ext fill:#e8f0fe,stroke:#4285f4,color:#1a1a1a
+    classDef us fill:#fef6e0,stroke:#f9ab00,color:#1a1a1a
+    class EXT ext
+    class US us
+```
 
 ## Setup
 

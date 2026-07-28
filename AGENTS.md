@@ -179,9 +179,14 @@ An additional, **fifth run** builds on the results:
 
 ### Return to the originating tool
 
-- At the end of the **last run**, a **UUID** is displayed.
-- The participant takes this UUID back into the originating tool so the datasets can be
-  **matched later** (mapping between our dataset and the external tool).
+- At the end of the **last run**, the participant is sent back to the originating tool so
+  the datasets can be **matched later** (mapping between our dataset and the external
+  tool). Mode is config-driven (`all_done.mode` in `priv/study/config.yml`):
+  - **`redirect`** (default) — a link/button back to the originating tool, its URL built
+    from the configured `redirect.url` with `%case_id%`/`%session_id%` placeholders
+    substituted.
+  - **`copy`** — the session UUID is shown with a copy-to-clipboard button; the
+    participant enters it into the questionnaire tool themselves.
 
 ## Participant flow (high level)
 
@@ -194,7 +199,8 @@ An additional, **fifth run** builds on the results:
    - Likert survey.
 3. Fifth run: modification on the best haiku — the participant's own first line is
    rewritten (random variant 5a/5b) + Likert.
-4. Display of the **UUID** (run/session ID) to return to the originating tool.
+4. Return to the originating tool — redirect link (default) or UUID + copy button,
+   depending on `all_done.mode` (see [Return to the originating tool](#return-to-the-originating-tool)).
 
 ## Data model
 
@@ -762,6 +768,10 @@ mix check --format agent              # JSON status header + raw failure blocks
 mix check --format json --output check.json
 ```
 
+Both formats include a `diagnostics` list for failed `compiler`/`credo`/`ex_unit` checks —
+each entry has `file`, `line` and `message`, so you can jump straight to a finding instead
+of parsing the raw output blocks.
+
 ## Useful flags
 
 - `--only NAME` / `-o NAME` — run only the named tool(s); repeatable. e.g. `mix check -o credo -o ex_unit`
@@ -770,8 +780,9 @@ mix check --format json --output check.json
 - `--retry` / `-r` — run only tools that failed in the previous run.
 - `--no-parallel` — run tools sequentially.
 - `--config PATH` / `-c PATH` — use a specific config file.
-- `--format pretty|agent|json` — output format (default `pretty`).
-- `--output PATH` — write the report to a file (only with `--format agent` or `json`).
+- `--format pretty|agent|json|github|junit` — output format (default `pretty`). `github` emits
+  GitHub Actions log groups + a `$GITHUB_STEP_SUMMARY` table; `junit` emits a JUnit XML report.
+- `--output PATH` — write the report to a file (only with `--format agent`, `json` or `junit`).
 
 Combine `--fix --retry` to fix only the tools that just failed.
 
