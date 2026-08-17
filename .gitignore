@@ -53,3 +53,4 @@ npm-debug.log
 # Default output path of bin/export.sh when no target is given.
 /study_export_*.json
 
+.Rproj.user
