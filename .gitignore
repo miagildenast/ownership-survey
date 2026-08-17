@@ -48,3 +48,8 @@ npm-debug.log
 *.db-shm
 *.db-wal
 
+/analysis/data/**
+
+# Default output path of bin/export.sh when no target is given.
+/study_export_*.json
+

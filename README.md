@@ -22,6 +22,7 @@ normally via the upstream `case_id` link, but a one-click dev route starts a ses
   - [Exporting study data](#exporting-study-data)
     - [Locally](#locally)
     - [On prod](#on-prod)
+  - [Analysing study data](#analysing-study-data)
 - [Learn more](#learn-more)
 
 ## Flow overview
@@ -256,7 +257,7 @@ falls back to chance on a tie:
   splits above balanced too.
 - **Modification variant** — balanced over `one word` / `whole line`.
 - Counters come from the database (aborted sessions excluded), so this works on a fresh
-  install *and* on a running study: an existing imbalance is actively caught up, without a
+  install _and_ on a running study: an existing imbalance is actively caught up, without a
   migration or a config switch.
 
 Operationally that means the `Randomization` / `modifications` lines above should keep
@@ -343,6 +344,15 @@ over SSH) loads the prod env from the supervisord service file and calls
 `OwnershipAshChat.Release.export/2`. That starts the repo on its own — no dependency on
 the running app or Erlang distribution (`remote`/`rpc` need a cookie + epmd, which this
 deploy doesn't set up).
+
+### Analysing study data
+
+The export is only one half of the dataset — the upstream tool holds the participants'
+demographics, joined on the shared `case_id`. That merge and everything downstream of it
+lives in [`analysis/README.md`](analysis/README.md).
+
+> [!IMPORTANT]
+> Study data is never committed. Exports are gitignored
 
 ## Learn more
 
