@@ -54,3 +54,9 @@ npm-debug.log
 /study_export_*.json
 
 .Rproj.user
+
+# Rendered Quarto output. Lands next to the .qmd, not under analysis/data/, and
+# embeds results and free-text answers — so it must not be committed either.
+/analysis/*.html
+/analysis/*_files/
+/analysis/.quarto/

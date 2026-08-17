@@ -1,0 +1,32 @@
+---
+title: "Haiku-Studie — Auswertung"
+lang: de
+date: today
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-summary: "Code anzeigen"
+    embed-resources: true
+    fig-width: 7
+    fig-height: 4.2
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(here)
+library(tidyverse)
+
+DERIVED <- here("data", "derived")
+
+f_writing <- file.path(DERIVED, "writing_long.csv")
+f_mod     <- file.path(DERIVED, "modification.csv")
+f_flow    <- file.path(DERIVED, "teilnehmerfluss.csv")
+```
+
+code comes here
