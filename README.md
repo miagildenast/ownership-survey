@@ -177,7 +177,8 @@ uberspace web backend set /ownership-survey --http --port 4001 --remove-prefix
 ```
 
 `URL_PATH` defaults to `/` (domain root) when unset. The upstream tool's entry
-link then becomes `https://USER.uber.space/ownership-survey/start?case_id=%caseToken%`.
+link then becomes
+`https://USER.uber.space/ownership-survey/start?case_id=%caseToken%&case_number=%case%`.
 
 > **Database:** prod uses SQLite (AshSqlite). `DATABASE_PATH` points at the prod `.db`
 > file; exqlite links uberspace's system SQLite at build time (see `bin/install.sh`).

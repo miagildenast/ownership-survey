@@ -164,15 +164,20 @@ An additional, **fifth run** builds on the results:
 ## Access & Identification
 
 - **No classic login** (no username/password).
-- Participants enter the application via a link carrying a `case_id`:
+- Participants enter the application via a link carrying **two** identifiers:
   ```
-  /start?case_id=%caseToken%
+  /start?case_id=%caseToken%&case_number=%case%
   ```
-  The `%caseToken%` placeholder is filled by the **upstream study tool** (e.g. a
-  survey/panel software) into the `case_id` query param. The value identifies the case.
-- The **`case_id`** is the value passed in the link; it maps our session to the external
-  tool. (Lean first pass: the value is treated as the `case_id` verbatim — no
+  Both placeholders are filled by the **upstream study tool** (SoSci Survey): `%caseToken%`
+  is the token identifying the interview, `%case%` its interview number. **Both params are
+  required** — `StartController` rejects a blank or missing one and redirects to `/`.
+- The **`case_id`** (from `%caseToken%`) is the primary key of the session; re-entry
+  upserts on it. (Lean first pass: the value is treated as the `case_id` verbatim — no
   signature/expiry yet; see [Open questions](#open-questions).)
+- The **`case_number`** (from `%case%`) is what actually **joins our data to the upstream
+  dataset**: it lands in the upstream export's `CASE` column. The caseToken has no column
+  in that export at all (`SERIAL`/`REF` stay empty), so despite its name it cannot serve as
+  the join key. See `analysis/sosci/README.md`.
 - **Re-entry resumes.** The same `case_id` upserts on the `unique_case_id` identity, so a
   reload or back-navigation returns the participant to their existing session rather than
   starting a new one.
@@ -213,8 +218,10 @@ attribute names (snake_case); exported JSON keys mirror them.
 ### `session` (one per participant / `case_id`)
 
 - `case_id` – the value from the entry link; mapping to the external tool
-- `case_number` – an additional per-session identifier (`unique_case_number` identity); an
-  alternate lookup key, usable as an export selector alongside `case_id`
+- `case_number` – the upstream interview number (`unique_case_number` identity); an
+  alternate lookup key, usable as an export selector alongside `case_id`, and the column
+  the upstream dataset is **joined** on (`CASE` there) — see
+  [Access & Identification](#access--identification)
 - `session_id` (UUID) – the id shown at the end for later matching
 - `topic_source_order` – randomized order of the two `topic_source` blocks, e.g.
   `[:free, :assigned]`
