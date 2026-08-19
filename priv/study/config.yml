@@ -9,7 +9,8 @@
 #
 # Placeholders replaced at call sites: {topic}, {line1}, {line2}, {original_line},
 # {line_no}, {target}, {rejected_line}, {count}, {change}.
-
+#
+# @author Mia Gildenast <miagildenast@icloud.com> (@miagildenast)
 title: "Dein, mein, unser? Eine Studie zu kreativem Schreiben, KI und Ideenursprung"
 
 intro:
