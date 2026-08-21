@@ -38,6 +38,7 @@ twice — `.csv` to look at or hand on (factors become their German labels), `.r
 | `04_eingeschlossen` | participant | The analysis sample at participant level — matched, no exclusion criterion hit. |
 | `05_ausgeschlossen` | participant | Matched but excluded; `ausschlussgrund` names which criterion. |
 | `06_zusammengefuehrt` | participant × run | **The analysis table.** 5 rows per participant (4 writing + 1 modification) with demographics and session fields attached — the long format `lmerTest` expects. `kind` separates writing from modification, `run_pos` gives the 1–5 order. |
+| `07_lesbar.csv` | participant × run | `06` with readable headers — `Consent` instead of `SC01`, `Ownership: Urheberschaft` instead of `likert_authorship`. For reading, sharing and the appendix; CSV only, since headers with spaces and colons are awkward in R. |
 | `transcripts_long` | participant × run × turn | The transcripts. Separate because stacking them into `06` would triple every Likert value. |
 | `teilnehmerfluss.csv` | flow stage | CONSORT-style counts from raw rows to analysis sample, one row per exclusion criterion. |
 | `variablen_labels.csv` | variable | `SD01 → "Geschlecht"` etc., harvested from the SoSci codebook. |
@@ -54,10 +55,26 @@ EXCLUSION_CRITERIA <- list(
 ```
 
 One entry = one criterion; adding a line is enough. Each one automatically gets its own
-`ex_<name>` column, appears in `ausschlussgrund`, and gets a row in `teilnehmerfluss.csv`.
+`ex_<name>` column, appears in `ausschlussgrund`, gets a row in `teilnehmerfluss.csv` and
+a readable header in `07_lesbar.csv`.
 The expressions are evaluated on the matched dataset and may use SoSci columns (`SC02`,
 `FINISHED`, `TIME_SUM`, …) as well as app columns (`session_status`, `n_runs`, …); a
 criterion whose columns are missing is skipped rather than failing.
+
+### Readable headers
+
+`07_lesbar.csv` takes its column names from the SoSci codebook itself (the `comment()`
+attributes the import script sets), so they stay current across a re-export. Two tables at
+the top of `merge_study_data.R` fill the gaps:
+
+- `COLUMN_LABELS_APP` — everything the codebook does not know: the app export and the
+  derived columns.
+- `COLUMN_LABELS_OVERRIDE` — codebook labels unusable as a header, either because they are
+  whole sentences (`LASTPAGE`) or carry input hints (`SD02_01`). It also fixes the codebook's
+  own typo in `SD08` ("Kreatvies Schreiben").
+
+A column with no entry keeps its technical name and is reported on the console; two columns
+mapping to the same header abort the run.
 
 ## Getting the data
 

@@ -85,6 +85,88 @@ LIKERT_ITEMS <- c(
 
 LIKERT_COLS <- paste0("likert_", unname(LIKERT_ITEMS))
 
+# --- Klarnamen für 07_lesbar --------------------------------------------------
+#
+# 07 ist 06 mit sprechenden Überschriften: statt "SC01" steht dort "Consent".
+# Die Basis liefert das SoSci-Codebook selbst (die comment()-Attribute des
+# Import-Scripts) — dadurch bleiben die Überschriften nach einem Re-Export
+# automatisch aktuell. Ergänzt wird sie um zwei Tabellen:
+
+# 1. Spalten, die das Codebook nicht kennt: alles aus dem App-Export und die
+#    hier abgeleiteten Spalten.
+COLUMN_LABELS_APP <- c(
+  CASE                 = "Fallnummer",
+  case_number          = "Fallnummer (App)",
+  case_id              = "Teilnahme-Token",
+  session_id           = "Session-ID",
+  session_status       = "Session-Status",
+  session_started_at   = "Session Beginn",
+  session_completed_at = "Session Ende",
+  session_dauer_min    = "Session Dauer (min)",
+  topic_source_order   = "Reihenfolge der Themenvorgabe",
+  n_runs               = "Anzahl Durchgänge",
+  n_writing_runs       = "Anzahl Schreib-Durchgänge",
+  hat_modifikation     = "Modifikations-Durchgang vorhanden",
+
+  kind                 = "Art des Durchgangs",
+  run_pos              = "Position im Ablauf (1-5)",
+  run_index            = "Durchgang Nr. (Schreiben 1-4)",
+  topic_source         = "Themenvorgabe",
+  ai_mode              = "KI-Modus",
+  topic                = "Vorgegebenes Thema",
+  final_haiku          = "Haiku",
+  run_started_at       = "Durchgang Beginn",
+  run_completed_at     = "Durchgang Ende",
+  run_dauer_s          = "Durchgang Dauer (s)",
+  n_turns              = "Anzahl Redebeiträge",
+
+  likert_accountability_and_responsibility = "Ownership: Verantwortung",
+  likert_authorship                        = "Ownership: Urheberschaft",
+  likert_autonomy                          = "Ownership: Autonomie",
+  likert_liking                            = "Ownership: Gefallen",
+  likert_self_efficacy                     = "Ownership: Selbstwirksamkeit",
+  likert_self_identity                     = "Ownership: Selbstbild",
+  likert_territoriality                    = "Ownership: Territorialität",
+  likert_mean                              = "Ownership: Mittelwert",
+
+  variant              = "Modifikation: Variante",
+  source_run_index     = "Modifikation: Vorlage (Durchgang Nr.)",
+  modified_line_index  = "Modifikation: geänderte Zeile (0-basiert)",
+  original_haiku       = "Modifikation: Haiku vorher",
+  modified_haiku       = "Modifikation: Haiku nachher",
+  offen_anmerkungen    = "Offene Antwort: Anmerkungen",
+  offen_mitteilungen   = "Offene Antwort: Mitteilungen",
+
+  ausgeschlossen       = "Ausgeschlossen",
+  ausschlussgrund      = "Ausschlussgrund"
+)
+
+# 2. Codebook-Labels, die als Spaltenüberschrift unbrauchbar sind: Eingabe-
+#    hinweise, ganze Fragesätze, ein Tippfehler in der Quelle. Diese Tabelle
+#    gewinnt gegen das Codebook.
+COLUMN_LABELS_OVERRIDE <- c(
+  # Eingabehinweise und Item-Nummern im Label
+  SD02_01  = "Alter",                            # "Alter (direkt): Ich bin ... Jahre"
+  SD06     = "KI Anwendungsbereiche (Anzahl)",
+  SD07_01  = "KI Aufgabenbereiche (offen)",      # "... : [01]"
+  SD08     = "Kreatives Schreiben",              # Codebook schreibt "Kreatvies"
+
+  # Codebook-Labels, die ganze Fragesätze sind
+  SERIAL   = "Teilnahmecode",
+  QUESTNNR = "Fragebogen",
+  STARTED  = "Interview Beginn",
+  MAILSENT = "Einladungsmail versandt",
+  LASTDATA = "Zuletzt geändert",
+  STATUS   = "Interview-Status",
+  FINISHED = "Befragung abgeschlossen",
+  Q_VIEWER = "Nur angesehen (Durchklicker)",
+  LASTPAGE = "Zuletzt bearbeitete Seite",
+  MAXPAGE  = "Höchste bearbeitete Seite",
+  MISSING  = "Fehlende Antworten (%)",
+  MISSREL  = "Fehlende Antworten (gewichtet)",
+  TIME_SUM = "Verweildauer gesamt"
+)
+
 
 # =============================================================================
 # Einlesen — SoSci
@@ -293,6 +375,50 @@ build_transcripts <- function(sessions) {
 
 
 # =============================================================================
+# Lesbare Überschriften
+# =============================================================================
+
+#' Ersetzt die technischen Spaltennamen durch Klarnamen.
+#'
+#' Reihenfolge, in der die Quellen gewinnen (spätere überschreiben frühere):
+#'   1. das SoSci-Codebook (comment()-Attribute)  -> SC01 wird "Consent"
+#'   2. COLUMN_LABELS_APP                          -> App- und abgeleitete Spalten
+#'   3. die ex_*-Spalten, die erst zur Laufzeit aus EXCLUSION_CRITERIA entstehen
+#'   4. COLUMN_LABELS_OVERRIDE                     -> unbrauchbare Codebook-Labels
+#'
+#' Spalten ohne Eintrag behalten ihren Namen und werden gemeldet, damit die
+#' Tabellen oben ergänzt werden können, statt dass es still durchrutscht.
+readable_names <- function(df, labels) {
+  lookup <- set_names(labels$label, labels$variable)
+  lookup[names(COLUMN_LABELS_APP)] <- COLUMN_LABELS_APP
+
+  ex_cols <- grep("^ex_", names(df), value = TRUE)
+  if (length(ex_cols) > 0) {
+    lookup[ex_cols] <- paste0("Ausschluss: ", sub("^ex_", "", ex_cols))
+  }
+
+  lookup[names(COLUMN_LABELS_OVERRIDE)] <- COLUMN_LABELS_OVERRIDE
+
+  alt <- names(df)
+  neu <- str_squish(ifelse(alt %in% names(lookup), unname(lookup[alt]), alt))
+
+  fehlend <- alt[!alt %in% names(lookup)]
+  if (length(fehlend) > 0) {
+    message("  Ohne Klarnamen (bleiben technisch): ", paste(fehlend, collapse = ", "))
+  }
+
+  # Zwei Spalten mit derselben Überschrift wären beim Wiedereinlesen nicht mehr
+  # auseinanderzuhalten — lieber hart abbrechen als still beschädigen.
+  if (anyDuplicated(neu) > 0) {
+    stop("Doppelte Überschriften nach dem Umbenennen: ",
+         paste(unique(neu[duplicated(neu)]), collapse = ", "))
+  }
+
+  set_names(df, neu)
+}
+
+
+# =============================================================================
 # Ausschlusskriterien anwenden
 # =============================================================================
 
@@ -470,6 +596,10 @@ if (RUN_TABLES_ONLY_INCLUDED) {
   zusammengefuehrt <- filter(zusammengefuehrt, !ausgeschlossen %in% TRUE)
 }
 
+# Dieselbe Tabelle mit Klarnamen statt Variablenkürzeln — siehe readable_names().
+message("\nLesbare Überschriften setzen ...")
+lesbar <- readable_names(zusammengefuehrt, labels)
+
 # Die Transkripte haben eine dritte Granularität (Person x Run x Redebeitrag).
 # Sie in die Tabelle oben zu stapeln würde jeden Likert-Wert verdreifachen,
 # deshalb bleiben sie eine eigene Datei.
@@ -574,6 +704,20 @@ write_both(
     "'run_pos' gibt die Reihenfolge 1..5. Enthält nur die eingeschlossene",
     "Stichprobe — writing_long und modification sind hierin aufgegangen und",
     "über filter(kind == ...) zu bekommen."
+  )
+)
+
+write_csv_only(
+  lesbar, "07_lesbar",
+  paste(
+    "06 MIT LESBAREN ÜBERSCHRIFTEN. Inhaltlich identisch mit",
+    "06_zusammengefuehrt, nur heißt die Spalte statt 'SC01' jetzt 'Consent',",
+    "statt 'SD01' 'Geschlecht' und statt 'likert_authorship' 'Ownership:",
+    "Urheberschaft'. Die Namen stammen aus dem SoSci-Codebook, ergänzt um",
+    "COLUMN_LABELS_APP und COLUMN_LABELS_OVERRIDE am Kopf des Skripts.",
+    "Zum Anschauen, Weitergeben und für den Anhang — gerechnet wird mit 06,",
+    "dessen Spaltennamen ohne Backticks ansprechbar sind. Nur als CSV, weil",
+    "Überschriften mit Leerzeichen und Doppelpunkten in R unhandlich sind."
   )
 )
 
