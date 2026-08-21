@@ -21,8 +21,17 @@ The real exports are snapshots and belong in `../data/raw/`, which is gitignored
 
 `%case%` is the interview number, so it lands in the `CASE` column of the export.
 `%caseToken%` was stored as our `case_id` but has **no column in the export at all** —
-`SERIAL` and `REF` stay empty throughout — which is why the token cannot serve as the join
-key even though it is the value the entry link is named after.
+which is why the token cannot serve as the join key even though it is the value the entry
+link is named after.
+
+The two columns that might look like candidates are not:
+
+- **`SERIAL`** is empty throughout.
+- **`REF`** is *not* empty — roughly a third of the rows carry a five-digit recruiting-panel
+  reference (e.g. `21058`). It matches no `case_id` and exists for only some participants,
+  so it is neither the token nor a usable key.
+
+`CASE` ↔ `case_number`, by contrast, matches every app session exactly.
 
 ## Re-exporting from SoSci
 

@@ -24,9 +24,20 @@ library(tidyverse)
 
 DERIVED <- here("data", "derived")
 
-f_writing <- file.path(DERIVED, "writing_long.csv")
-f_mod     <- file.path(DERIVED, "modification.csv")
-f_flow    <- file.path(DERIVED, "teilnehmerfluss.csv")
+# Die Analysetabelle: eine Zeile je Person x Run (5 pro Person), Soziodemographie
+# und Session-Felder sind angehängt. Erzeugt von merge_study_data.R.
+d <- readRDS(file.path(DERIVED, "06_zusammengefuehrt.rds"))
+
+# Writing- und Modification-Runs sind in `d` gestapelt; `kind` trennt sie.
+d_writing <- dplyr::filter(d, kind == "writing")
+d_mod     <- dplyr::filter(d, kind == "modification")
+
+# Personenebene (eine Zeile je Teilnehmende:r) für die Stichprobenbeschreibung.
+personen <- readRDS(file.path(DERIVED, "04_eingeschlossen.rds"))
+
+# Teilnehmendenfluss für das Flussdiagramm im Methodenteil.
+flow <- readr::read_csv(file.path(DERIVED, "teilnehmerfluss.csv"),
+                        show_col_types = FALSE)
 ```
 
 code comes here

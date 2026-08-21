@@ -7,8 +7,9 @@ The study produces **two halves of one dataset**, and neither is complete on its
 - **the upstream tool** — one row per participant with the demographics (age, gender,
   occupation, …)
 
-They are joined on the ID both sides share: `case_id` here, the value the upstream tool
-substituted into the `%caseToken%` placeholder of the entry link there.
+They are joined on **`CASE` (SoSci) ↔ `case_number` (this app)** — the interview number the
+entry link carried as `%case%`. Not on `case_id`: that token has no column in the SoSci
+export, see [`sosci/README.md`](sosci/README.md#join-key).
 
 ## Layout
 
@@ -18,6 +19,45 @@ analysis          this directory
   /data/raw/      frozen input snapshots
   /data/derived/  generated tables
 ```
+
+## Merging
+
+```sh
+Rscript merge_study_data.R      # or source("merge_study_data.R") in RStudio
+```
+
+Reads the two snapshots from `data/raw/` and writes `data/derived/`. Every table is written
+twice — `.csv` to look at or hand on (factors become their German labels), `.rds` for R
+(factor levels, `POSIXct` and attributes survive intact).
+
+| File | One row per | What it is |
+|---|---|---|
+| `01_nur_sosci` | participant | Only in SoSci — questionnaire started, but no app session. |
+| `02_nur_app` | participant | Only in the app — session without a matching SoSci row. Empty when the data is consistent, but always written. |
+| `03_matched` | participant | In both, unfiltered, with the exclusion flags. |
+| `04_eingeschlossen` | participant | The analysis sample at participant level — matched, no exclusion criterion hit. |
+| `05_ausgeschlossen` | participant | Matched but excluded; `ausschlussgrund` names which criterion. |
+| `06_zusammengefuehrt` | participant × run | **The analysis table.** 5 rows per participant (4 writing + 1 modification) with demographics and session fields attached — the long format `lmerTest` expects. `kind` separates writing from modification, `run_pos` gives the 1–5 order. |
+| `transcripts_long` | participant × run × turn | The transcripts. Separate because stacking them into `06` would triple every Likert value. |
+| `teilnehmerfluss.csv` | flow stage | CONSORT-style counts from raw rows to analysis sample, one row per exclusion criterion. |
+| `variablen_labels.csv` | variable | `SD01 → "Geschlecht"` etc., harvested from the SoSci codebook. |
+
+### Exclusion criteria
+
+They live in `EXCLUSION_CRITERIA` at the top of `merge_study_data.R`:
+
+```r
+EXCLUSION_CRITERIA <- list(
+  sc02_leer     = quo(is.na(SC02)),
+  nicht_beendet = quo(!FINISHED %in% TRUE)
+)
+```
+
+One entry = one criterion; adding a line is enough. Each one automatically gets its own
+`ex_<name>` column, appears in `ausschlussgrund`, and gets a row in `teilnehmerfluss.csv`.
+The expressions are evaluated on the matched dataset and may use SoSci columns (`SC02`,
+`FINISHED`, `TIME_SUM`, …) as well as app columns (`session_status`, `n_runs`, …); a
+criterion whose columns are missing is skipped rather than failing.
 
 ## Getting the data
 
