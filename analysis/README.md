@@ -39,6 +39,7 @@ twice — `.csv` to look at or hand on (factors become their German labels), `.r
 | `05_ausgeschlossen` | participant | Matched but excluded; `ausschlussgrund` names which criterion. |
 | `06_zusammengefuehrt` | participant × run | **The analysis table.** 5 rows per participant (4 writing + 1 modification) with demographics and session fields attached — the long format `lmerTest` expects. `kind` separates writing from modification, `run_pos` gives the 1–5 order. |
 | `07_lesbar.csv` | participant × run | `06` with readable headers — `Consent` instead of `SC01`, `Ownership: Urheberschaft` instead of `likert_authorship`. For reading, sharing and the appendix; CSV only, since headers with spaces and colons are awkward in R. |
+| `07a`–`07f` | participant × run | `07` split up: `a`–`d` are the four cells of the 2×2 design (49 rows each), `e` is the modification run, `f` is all writing runs (196 = `07` without `e`). Same columns and headers as `07` throughout, so they stack back together. |
 | `transcripts_long` | participant × run × turn | The transcripts. Separate because stacking them into `06` would triple every Likert value. |
 | `teilnehmerfluss.csv` | flow stage | CONSORT-style counts from raw rows to analysis sample, one row per exclusion criterion. |
 | `variablen_labels.csv` | variable | `SD01 → "Geschlecht"` etc., harvested from the SoSci codebook. |
@@ -75,6 +76,19 @@ the top of `merge_study_data.R` fill the gaps:
 
 A column with no entry keeps its technical name and is reported on the console; two columns
 mapping to the same header abort the run.
+
+### The 07a–f split
+
+`SUBSET_FILES`, also at the top of the script, defines one entry per file — a filter and a
+description. The filters run against the technical table, not the readable one, so renaming
+a column in `COLUMN_LABELS_APP` cannot silently break them; `readable_names()` is applied
+afterwards, which is why every subset has byte-identical headers to `07`.
+
+`a`–`d` cut by **condition**, not by position in the sequence. Run order is randomised, so
+cutting by `run_pos` would put all four conditions into every file — `run_pos` stays a
+column instead, which keeps order effects available. The script asserts that `a+b+c+d`
+equals `f` and that `e+f` equals `07`, so a typo in a filter fails the run rather than
+quietly dropping rows.
 
 ## Getting the data
 

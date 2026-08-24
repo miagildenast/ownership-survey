@@ -5,6 +5,7 @@
 library(here)
 library(tidyverse)
 library(jsonlite)
+library(psych)
 
 # directories to get/put data
 RAW_DIR <- here("data", "raw")
@@ -165,6 +166,54 @@ COLUMN_LABELS_OVERRIDE <- c(
   MISSING  = "Fehlende Antworten (%)",
   MISSREL  = "Fehlende Antworten (gewichtet)",
   TIME_SUM = "Verweildauer gesamt"
+)
+
+# --- Teildateien 07a-f --------------------------------------------------------
+#
+# 07 aufgeteilt: je eine Datei pro Bedingung, dazu der Modifikations-Durchgang
+# und eine Datei ohne ihn. Alle sechs haben dieselben Spalten und dieselben
+# Überschriften wie 07 — nur die Zeilenauswahl unterscheidet sich.
+#
+# Ein Eintrag = eine Datei; erweitern heißt eine Zeile hinzufügen.
+#
+# Der Filter wird auf der TECHNISCHEN Tabelle (zusammengefuehrt) ausgewertet,
+# nicht auf den Klarnamen — sonst würde eine Änderung in COLUMN_LABELS_APP die
+# Filter still brechen.
+#
+# a-d schneiden nach BEDINGUNG, nicht nach Position im Ablauf: die Reihenfolge
+# ist randomisiert, ein Schnitt nach run_pos würde in jeder Datei alle vier
+# Bedingungen mischen. Die Position steht als Spalte weiterhin überall drin.
+SUBSET_FILES <- list(
+  "07a_frei_mit_ki" = list(
+    filter = quo(kind == "writing" & topic_source == "free" & ai_mode == "with_ai"),
+    text   = "Freie Themenwahl, mit KI (Ping-Pong)."
+  ),
+  "07b_frei_ohne_ki" = list(
+    filter = quo(kind == "writing" & topic_source == "free" & ai_mode == "without_ai"),
+    text   = "Freie Themenwahl, ohne KI (allein geschrieben)."
+  ),
+  "07c_vorgegeben_mit_ki" = list(
+    filter = quo(kind == "writing" & topic_source == "assigned" & ai_mode == "with_ai"),
+    text   = "Vorgegebenes Thema, mit KI (Ping-Pong)."
+  ),
+  "07d_vorgegeben_ohne_ki" = list(
+    filter = quo(kind == "writing" & topic_source == "assigned" & ai_mode == "without_ai"),
+    text   = "Vorgegebenes Thema, ohne KI (allein geschrieben)."
+  ),
+  "07e_modifikation" = list(
+    filter = quo(kind == "modification"),
+    text   = paste(
+      "Nur der fünfte Durchgang, in dem die KI eine Zeile des besten Haikus",
+      "umgeschrieben hat. Hier sind umgekehrt die Schreib-Spalten leer."
+    )
+  ),
+  "07f_ohne_modifikation" = list(
+    filter = quo(kind == "writing"),
+    text   = paste(
+      "Alle vier Schreib-Durchgänge zusammen, also 07 ohne den",
+      "Modifikations-Durchgang. Entspricht 07a bis 07d untereinander."
+    )
+  )
 )
 
 
@@ -719,6 +768,41 @@ write_csv_only(
     "dessen Spaltennamen ohne Backticks ansprechbar sind. Nur als CSV, weil",
     "Überschriften mit Leerzeichen und Doppelpunkten in R unhandlich sind."
   )
+)
+
+# 07 aufgeteilt (siehe SUBSET_FILES). Gefiltert wird auf der technischen
+# Tabelle, umbenannt erst danach mit derselben readable_names(), die auch 07
+# erzeugt — dadurch sind die Überschriften garantiert identisch.
+teil_zeilen <- c()
+for (teil_name in names(SUBSET_FILES)) {
+  spec <- SUBSET_FILES[[teil_name]]
+  teil <- filter(zusammengefuehrt, !!spec$filter)
+
+  if (nrow(teil) == 0) {
+    warning("Teildatei ", teil_name, " ist leer — Filter prüfen.", call. = FALSE)
+  }
+  teil_zeilen[teil_name] <- nrow(teil)
+
+  write_csv_only(
+    readable_names(teil, labels), teil_name,
+    paste(
+      "TEILMENGE VON 07 —", spec$text,
+      "Gleiche Spalten und Überschriften wie 07_lesbar, nur andere Zeilen;",
+      "die für diese Auswahl nicht zutreffenden Spalten bleiben leer."
+    )
+  )
+}
+
+# Ein Tippfehler in einem Filter ("free" vs "frei") würde Zeilen verschwinden
+# lassen, ohne dass es auffällt. Deshalb muss die Aufteilung aufgehen.
+n_writing      <- sum(zusammengefuehrt$kind == "writing")
+n_modification <- sum(zusammengefuehrt$kind == "modification")
+stopifnot(
+  "07a-d ergeben zusammen nicht 07f" =
+    sum(teil_zeilen[c("07a_frei_mit_ki", "07b_frei_ohne_ki",
+                      "07c_vorgegeben_mit_ki", "07d_vorgegeben_ohne_ki")]) == n_writing,
+  "07e + 07f ergeben nicht 07" =
+    n_writing + n_modification == nrow(zusammengefuehrt)
 )
 
 write_both(
