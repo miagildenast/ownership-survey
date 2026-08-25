@@ -5,7 +5,7 @@
 library(here)
 library(tidyverse)
 library(jsonlite)
-library(psych)
+
 
 # directories to get/put data
 RAW_DIR <- here("data", "raw")
