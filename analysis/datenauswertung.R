@@ -413,7 +413,7 @@ boxplot(
 # Boxplots über die 4 Schreib-Bedingungs-Kombinationen
 boxplot(
   Ownership ~ topic_source * ai_mode,
-  data = zusammengefuehrt[zusammengefuehrt$kind == "writing"],
+  data = zusammengefuehrt[zusammengefuehrt$kind == "writing", ],
   main = "Ownership nach Thema und KI-Bedingung",
   xlab = "Thema und KI-Bedingung",
   ylab = "Ownership"
