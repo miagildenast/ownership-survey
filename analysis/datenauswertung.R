@@ -5,23 +5,32 @@ source("merge_study_data.R")
 
 # Notwendige Libraries zur Auswertung
 library(psych)
+library(afex)
+library(emmeans)
 
-### Relibilität ###
-## Cronbachs Alpha für Schreibbedingungen
+#######################
+##### Reliabilität #####
+#######################
+
+## Cronbachs Alpha der 7 Ownership-Items für Schreibbedingungen
 psych::alpha(
   zusammengefuehrt[zusammengefuehrt$kind == "writing", 14:20]
 )
 
-## Cronbachs Alpha für Modifikationsbedingung
+## Cronbachs Alpha der 7 Ownership-Items für Modifikationsbedingung
 psych::alpha(
   zusammengefuehrt[zusammengefuehrt$kind == "modification", 14:20]
 )
+
+
 
 #################################
 ##### Deskriptive Statistik #####
 #################################
 
-#### Beschreibung der Stichprobe ####
+
+##### Stichprobe ######
+
 ### Nominale Variablen ###
 # Anzahl Teilnehmende (da in Datei pro run eine Zeile)
 length(unique(zusammengefuehrt$CASE))
@@ -99,8 +108,6 @@ modus_ki_erfahrung # gibt Position der Kategorie aus
 levels(ki_erfahrung$SD04)[modus_ki_erfahrung] # gibt Kategorie aus
 table(ki_erfahrung$SD04)[modus_ki_erfahrung] # gibt Anzahl aus
 
-
-
 ## KI Nutzungshäufigkeit 
 # Jede Person nur einmal berücksichtigen
 ki_nutzungshaeufigkeit <- unique(zusammengefuehrt[, c("CASE", "SD05")])
@@ -140,8 +147,6 @@ modus_ki_nutzungshaeufigkeit # gibt Position der Kategorie aus
 levels(ki_nutzungshaeufigkeit$SD05)[modus_ki_nutzungshaeufigkeit] # gibt Kategorie aus
 table(ki_nutzungshaeufigkeit$SD05)[modus_ki_nutzungshaeufigkeit] # gibt Anzahl aus
 
-
-
 # Kreative Schreiberfahrung
 # Jede Person nur einmal berücksichtigen
 kreative_schreiberfahrung <- unique(zusammengefuehrt[, c("CASE", "SD08")])
@@ -179,7 +184,6 @@ modus_kreative_schreibaufgabe <- which.max(table(kreative_schreiberfahrung$SD08)
 modus_kreative_schreibaufgabe # gibt Position der Kategorie aus
 levels(kreative_schreiberfahrung$SD08)[modus_kreative_schreibaufgabe] # gibt Kategorie aus
 table(kreative_schreiberfahrung$SD08)[modus_kreative_schreibaufgabe] # gibt Anzahl aus
-
 
 # Haiku Schreiberfahrung
 # Jede Person nur einmal berücksichtigen
@@ -256,15 +260,28 @@ boxplot(
 
 
 
-#### Beschreibung der Studie #### 
-### Schreibbedingungen ###
-# Ownership-Scores berechnen
+##### Ownership #####
+
+# Ownership-Scores aus den 7 Items berechnen
+# Der Score wird für Schreibbedingungen und Modifikation (also alle Runs) berechnet
 zusammengefuehrt$Ownership <- rowMeans(
-  zusammengefuehrt[, c("likert_accountability_and_responsibility", "likert_authorship", "likert_autonomy", "likert_liking", "likert_self_efficacy", "likert_self_identity", "likert_territoriality")],
+  zusammengefuehrt[, c(
+    "likert_accountability_and_responsibility", 
+    "likert_authorship", 
+    "likert_autonomy", 
+    "likert_liking", 
+    "likert_self_efficacy", 
+    "likert_self_identity", 
+    "likert_territoriality"
+    )],
   na.rm = TRUE
 )
-
+# Übersicht Ownership-Scores über alle Runs
 summary(zusammengefuehrt$Ownership)
+
+
+### Schreibbedingungen ###
+
 # Ownership-Scores (n, M, SD) für die 4 Schreibbedingungen
 deskriptiv_schreibbedingung <- zusammengefuehrt %>%
   filter(!is.na(topic_source) & !is.na(ai_mode)) %>%
