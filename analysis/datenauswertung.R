@@ -7,6 +7,8 @@ source("merge_study_data.R")
 library(psych)
 library(afex)
 library(emmeans)
+library(knitr)
+library(kableExtra)
 
 #######################
 ##### Reliabilität #####
@@ -38,12 +40,14 @@ length(unique(zusammengefuehrt$CASE))
 # Jede Person nur einmal berücksichtigen
 geschlechter <- unique(zusammengefuehrt[, c("CASE", "SD01")])
 # Anzahl
-table(geschlechter$SD01)
+geschlechter_n <- table(geschlechter$SD01)
+geschlechter_n
 # Prozent
-prop.table(table(geschlechter$SD01)) * 100
+geschlechter_prozent <- prop.table(table(geschlechter$SD01)) * 100
+geschlechter_prozent
 # Plot
 barplot(
-  table(geschlechter$SD01),
+  geschlechter_n,
   main = "Geschlechterverteilung der Teilnehmenden",
   xlab = "Geschlecht",
   ylab = "Anzahl",
@@ -55,12 +59,14 @@ barplot(
 # Jede Person nur einmal berücksichtigen
 beschaeftigungen <- unique(zusammengefuehrt[, c("CASE", "SD03")])
 # Anzahl
-table(beschaeftigungen$SD03)
+beschaeftigungen_n <- table(beschaeftigungen$SD03)
+beschaeftigungen_n
 # Prozent
-prop.table(table(beschaeftigungen$SD03)) * 100
+beschaeftigungen_prozent <- prop.table(table(beschaeftigungen$SD03)) * 100
+beschaeftigungen_prozent
 # Plot
 barplot(
-  table(beschaeftigungen$SD03),
+  beschaeftigungen_n,
   main = "Beschäftigungen der Teilnehmenden",
   xlab = "Beschäftigung",
   ylab = "Anzahl",
@@ -85,12 +91,14 @@ ki_erfahrung$SD04 <- factor(
   ordered = TRUE
 )
 # Anzahl
-table(ki_erfahrung$SD04)
+ki_erfahrung_n <- table(ki_erfahrung$SD04)
+ki_erfahrung_n
 # Prozent
-prop.table(table(ki_erfahrung$SD04)) * 100
+ki_erfahrung_prozent <- prop.table(table(ki_erfahrung$SD04)) * 100
+ki_erfahrung_prozent
 # Plot
 barplot(
-  table(ki_erfahrung$SD04),
+  ki_erfahrung_n,
   main = "KI-Erfahrung der Teilnehmenden",
   xlab = "Erfahrung",
   ylab = "Anzahl",
@@ -124,12 +132,14 @@ ki_nutzungshaeufigkeit$SD05 <- factor(
   ordered = TRUE
 )
 # Anzahl
-table(ki_nutzungshaeufigkeit$SD05)
+ki_nutzungshaeufigkeit_n <- table(ki_nutzungshaeufigkeit$SD05)
+ki_nutzungshaeufigkeit_n
 # Prozent
-prop.table(table(ki_nutzungshaeufigkeit$SD05)) * 100
+ki_nutzungshaeufigkeit_prozent <- prop.table(table(ki_nutzungshaeufigkeit$SD05)) * 100
+ki_nutzungshaeufigkeit_prozent
 # Plot
 barplot(
-  table(ki_nutzungshaeufigkeit$SD05),
+  ki_nutzungshaeufigkeit_n,
   main = "KI-Nutzungshäufigkeit der Teilnehmenden",
   xlab = "Nutzungshäufigkeit",
   ylab = "Anzahl",
@@ -162,12 +172,14 @@ kreative_schreiberfahrung$SD08 <- factor(
   ordered = TRUE
 )
 # Anzahl
-table(kreative_schreiberfahrung$SD08)
+kreative_schreiberfahrung_n <- table(kreative_schreiberfahrung$SD08)
+kreative_schreiberfahrung_n
 # Prozent
-prop.table(table(kreative_schreiberfahrung$SD08)) * 100
+kreative_schreiberfahrung_prozent <- prop.table(table(kreative_schreiberfahrung$SD08 )) * 100
+kreative_schreiberfahrung_prozent
 # Plot
 barplot(
-  table(kreative_schreiberfahrung$SD08),
+  kreative_schreiberfahrung_n ,
   main = "KI-Nutzungshäufigkeit der Teilnehmenden",
   xlab = "Nutzungshäufigkeit",
   ylab = "Anzahl",
@@ -199,12 +211,14 @@ haiku_schreiberfahrung$SD09 <- factor(
   ordered = TRUE
 )
 # Anzahl
-table(haiku_schreiberfahrung$SD09)
+haiku_schreiberfahrung_n <- table(haiku_schreiberfahrung$SD09)
+haiku_schreiberfahrung_n
 # Prozent
-prop.table(table(haiku_schreiberfahrung$SD09)) * 100
+haiku_schreiberfahrung_prozent <- prop.table(table(haiku_schreiberfahrung$SD09)) * 100
+haiku_schreiberfahrung_prozent
 # Plot
 barplot(
-  table(haiku_schreiberfahrung$SD09),
+  haiku_schreiberfahrung_n,
   main = "KI-Nutzungshäufigkeit der Teilnehmenden",
   xlab = "Nutzungshäufigkeit",
   ylab = "Anzahl",
@@ -220,7 +234,6 @@ modus_haiku_schreibaufgabe <- which.max(table(haiku_schreiberfahrung$SD09))
 modus_haiku_schreibaufgabe # gibt Position der Kategorie aus
 levels(haiku_schreiberfahrung$SD09)[modus_haiku_schreibaufgabe] # gibt Kategorie aus
 table(haiku_schreiberfahrung$SD09)[modus_haiku_schreibaufgabe] # gibt Anzahl aus
-
 
 ### Verhältnis Variablen ###
 # Alter der Teilnehmenden
@@ -256,8 +269,6 @@ boxplot(
   main = "Alter der Teilnehmenden",
   ylab = "Alter in Jahren"
 )
-
-
 
 ##### Ownership #####
 
@@ -413,7 +424,91 @@ tapply(
   modifikation_auswertung$variant_label, # Nach welcher Gruppe?
   summary # Was damit machen?
 )
+
+# Größter Abfall und größter Anstieg des Ownership-Scores
+min_delta <- min(
+  modifikation_auswertung$delta_ownership,
+  na.rm = TRUE
+)
+
+max_delta <- max(
+  modifikation_auswertung$delta_ownership,
+  nar.rm = TRUE
+)
  
+min_delta
+max_delta
+
+# Instanzen mit größtem Ownership-Abfall
+groesster_abfall_ownership <- modifikation_auswertung %>%
+  filter(delta_ownership == min(delta_ownership, na.rm = TRUE))
+
+groesster_abfall_ownership
+
+# Instanzen mit größtem Ownership-Zuwachs
+groesster_zuwachs_ownership <- modifikation_auswertung %>%
+  filter(delta_ownership == max(delta_ownership, na.rm = TRUE))
+
+groesster_zuwachs_ownership
+
+# Alle Instanzen mit einem Anstieg des Ownership-Scores
+ownership_anstieg <- modifikation_auswertung %>%
+  filter(delta_ownership >0)%>%
+  arrange(desc(delta_ownership))
+
+ownership_anstieg
+#Anzahl Fälle mit Ownership-Anstieg
+nrow(ownership_anstieg)
+#Prozentualer Anteil
+prozent_ownership_anstieg <- mean(
+  modifikation_auswertung$delta_ownership > 0, na.rm = TRUE) * 100
+
+prozent_ownership_anstieg
+
+# Alle Instanzen mit einem Abfall des Ownership-Scores
+ownership_abfall <- modifikation_auswertung %>%
+  filter(delta_ownership < 0)%>%
+  arrange(desc(delta_ownership))
+
+ownership_abfall
+#Anzahl Fälle mit Ownership-Abfall
+nrow(ownership_abfall)
+#Prozentualer Anteil
+prozent_ownership_abfall <- mean(
+  modifikation_auswertung$delta_ownership < 0, na.rm = TRUE) * 100
+
+prozent_ownership_abfall
+
+# Alle Instanzen mit konstantem Ownership-Score
+ownership_konstant <- modifikation_auswertung %>%
+  filter(delta_ownership == 0)%>%
+  arrange(desc(delta_ownership))
+
+ownership_konstant
+#Anzahl Fälle mit konstanter Ownership
+nrow(ownership_konstant)
+#Prozentualer Anteil
+prozent_ownership_konstant <- mean(
+  modifikation_auswertung$delta_ownership == 0, na.rm = TRUE) * 100
+
+prozent_ownership_konstant
+
+#Tabelle der Ownership-Veränderungen getrennt nach Modifikationsart
+tabelle_ownership_veraenderung <- modifikation_auswertung %>%
+  group_by(variant_label) %>%
+  summarise(
+    n_Anstieg = sum(delta_ownership > 0, na.rm = TRUE),
+    Prozent_Anstieg = mean(delta_ownership > 0, na.rm = TRUE) * 100,
+    n_Abfall = sum(delta_ownership < 0, na.rm = TRUE),
+    Proeznt_Abfall = mean(delta_ownership < 0, na.rm = TRUE) * 100,
+    n_Konstant = sum(delta_ownership == 0, na.rm = TRUE),
+    Prozent_Konstant = mean(delta_ownership == 0, na.rm = TRUE),
+    Groesster_Zuwachs = max(delta_ownership, na.rm = TRUE),
+    Groesster_Abfall = min(delta_ownership, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+tabelle_ownership_veraenderung
 
 #############################
 ##### Inferenzstatistik #####
@@ -451,7 +546,24 @@ anova_schreibbedingungen <- aov_ez(
 
 anova_schreibbedingungen
 
+# Marginale Mittelwerte für Ideenurpsrung (H1)
+emmeans_h1 <- emmeans(
+  anova_schreibbedingungen,
+  ~ topic
+)
+
+emmeans_h1
+
+# Marginale Mittelwerte für KI-Unterstützung (H2)
+emmeans_h2 <- emmeans(
+  anova_schreibbedingungen,
+  ~ ai
+)
+
+emmeans_h2
+
 # Simple Effects / Paarvergleiche für mit vs ohne KI
+# Vergleiche mit und ohne KI-Unterstützung jeweils innerhalb einer Themen-Bedingung
 emmeans_ai <- emmeans(
   anova_schreibbedingungen,
   ~ ai | topic
@@ -462,6 +574,7 @@ emmeans_ai
 pairs(emmeans_ai)
 
 # Simple Effects / Paarvergleich für freies vs vorgegebenes Thema
+# Vergleiche freies und vorgegebenes Thema jeweils innerhalb einer KI-Bedingung
 emmeans_topic <- emmeans(
   anova_schreibbedingungen,
   ~ topic | ai
@@ -470,6 +583,7 @@ emmeans_topic <- emmeans(
 emmeans_topic
 
 pairs(emmeans_topic)
+
 
 # Residuen der ANOVA
 residuen <- residuals(anova_schreibbedingungen$lm)
@@ -509,6 +623,8 @@ car::leveneTest(
   data = schreibdaten
 )
 
+
+
 ##### Modifikation ##### 
 # Shapiro-Wilk-Test zur Überprüfung der Normalverteilung
 shapiro.test(
@@ -535,6 +651,12 @@ t_test_modifikation <- t.test(
 )
 
 t_test_modifikation
+
+tapply(
+  modifikation_auswertung$delta_ownership,
+  modifikation_auswertung$variant_label,
+  summary
+)
 
    
 ##### Grafiken #####
@@ -720,3 +842,5 @@ qqline(
 )
 
 par(mfrow = c(1,1))
+
+
